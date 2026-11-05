@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
@@ -58,7 +58,7 @@ export default function TripPage() {
             </p>
             <div className="mt-7 flex items-center gap-2 text-xs font-semibold text-white">
               <Waves size={17} />
-              Travel · Stay · Experience
+              Travel Â· Stay Â· Experience
             </div>
           </div>
         </div>
@@ -117,14 +117,14 @@ export default function TripPage() {
         </div>
 
         {filteredTrips.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             {filteredTrips.map((trip) => (
               <article
                 key={trip.slug}
                 className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
               >
                 <Link href={`/trip/${trip.slug}`} className="block">
-                  <div className="relative aspect-[16/10] overflow-hidden bg-slate-200">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-slate-200">
                     <Image
                       src={trip.image}
                       alt={trip.title}
@@ -148,23 +148,23 @@ export default function TripPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="p-4">
+                  <div className="p-3 sm:p-4">
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                       <MapPin size={13} className="text-[#1974FF]" />
                       {trip.location}
                     </div>
-                    <h3 className="mt-2 text-lg font-bold text-[#0A2E63]">
+                    <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-[#0A2E63] sm:text-lg">
                       {trip.title}
                     </h3>
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                    <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-slate-500 sm:text-xs">
                       {trip.description}
                     </p>
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                      <span className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                    <div className="mt-3 flex flex-col items-start justify-between gap-2 border-t border-slate-100 pt-3 sm:mt-4 sm:flex-row sm:items-center">
+                      <span className="flex items-center gap-1 text-[9px] text-slate-400 sm:gap-1.5 sm:text-[10px]">
                         <Clock3 size={13} />
                         {trip.duration}
                       </span>
-                      <span className="flex items-center gap-1 text-xs font-bold text-[#1974FF]">
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-[#1974FF] sm:text-xs">
                         Lihat detail <ArrowRight size={15} />
                       </span>
                     </div>
@@ -219,3 +219,4 @@ export default function TripPage() {
     </div>
   );
 }
+
