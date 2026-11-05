@@ -1,0 +1,462 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  MapPin,
+  ShieldCheck,
+  Users,
+  Waves,
+  X,
+} from "lucide-react";
+import type { Trip, TripMode } from "@/lib/trips";
+
+type AccordionSectionProps = {
+  title: string;
+  eyebrow?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+};
+
+function AccordionSection({
+  title,
+  eyebrow,
+  icon,
+  children,
+  defaultOpen = false,
+}: AccordionSectionProps) {
+  return (
+    <details
+      className="group overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.025)]"
+      open={defaultOpen}
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 sm:px-5 [&::-webkit-details-marker]:hidden">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1974FF]">
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          {eyebrow && (
+            <span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-[#1974FF]">
+              {eyebrow}
+            </span>
+          )}
+          <span className="mt-0.5 block text-sm font-bold text-[#0A2E63]">
+            {title}
+          </span>
+        </span>
+        <ChevronDown
+          size={18}
+          className="shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+        />
+      </summary>
+      <div className="border-t border-slate-100 px-4 py-4 sm:px-5">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+export default function TripDetailClient({ trip }: { trip: Trip }) {
+  const availableModes = trip.modes;
+  const [mode, setMode] = useState<TripMode>(availableModes[0] ?? "private");
+  const [activeImage, setActiveImage] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const bookingHref = `/booking?trip=${encodeURIComponent(trip.slug)}&mode=${mode}`;
+
+  return (
+    <div className="min-h-screen bg-[#F7F9FC] pb-28 md:pb-12">
+      <div className="mx-auto max-w-7xl px-3 pt-3 sm:px-8 sm:pt-4">
+        <Link
+          href="/trip"
+          className="inline-flex items-center gap-2 py-2 text-xs font-semibold text-[#1974FF]"
+        >
+          <ArrowLeft size={16} /> Kembali ke Explore
+        </Link>
+
+        {/* Premium gallery */}
+        <section className="mt-2 grid gap-1.5 overflow-hidden rounded-[22px] sm:grid-cols-[1.5fr_1fr] sm:grid-rows-2 sm:gap-3 sm:rounded-[26px]">
+          <div className="relative aspect-[5/4] overflow-hidden bg-slate-200 sm:row-span-2 sm:aspect-auto sm:min-h-[430px]">
+            <Image
+              src={trip.gallery[activeImage] ?? trip.image}
+              alt={trip.title}
+              fill
+              priority
+              sizes="(max-width: 640px) 100vw, 60vw"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#07172F]/65 via-transparent to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 text-white sm:bottom-7 sm:left-7">
+              <div className="mb-2 flex flex-wrap gap-1">
+                {trip.category.map((category) => (
+                  <span
+                    key={category}
+                    className="rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-[9px] font-semibold backdrop-blur-md"
+                  >
+                    {category}
+                  </span>
+                ))}
+              </div>
+              <h1 className="max-w-2xl text-xl font-bold leading-tight sm:text-4xl">
+                {trip.title}
+              </h1>
+              <p className="mt-1.5 flex items-center gap-1.5 text-[10px] text-white/90 sm:text-sm">
+                <MapPin size={13} /> {trip.location}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-1 sm:grid-rows-2 sm:gap-3">
+            {trip.gallery.slice(1, 3).map((src, index) => (
+              <button
+                key={src}
+                type="button"
+                onClick={() => setActiveImage(index + 1)}
+                className="group relative aspect-[4/3] overflow-hidden bg-slate-200 sm:aspect-auto sm:min-h-0"
+              >
+                <Image
+                  src={src}
+                  alt={`${trip.title} gallery ${index + 2}`}
+                  fill
+                  sizes="(max-width: 640px) 50vw, 30vw"
+                  className="object-cover transition duration-500 group-hover:scale-105"
+                />
+                <span className="absolute bottom-2 right-2 rounded-full bg-black/45 px-2.5 py-1 text-[9px] font-semibold text-white backdrop-blur">
+                  Lihat foto
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          {trip.gallery.map((src, index) => (
+            <button
+              key={src}
+              type="button"
+              onClick={() => setActiveImage(index)}
+              aria-label={`Pilih foto ${index + 1}`}
+              className={`relative h-11 w-16 shrink-0 overflow-hidden rounded-lg border-2 sm:h-14 sm:w-20 sm:rounded-xl ${
+                activeImage === index
+                  ? "border-[#1974FF]"
+                  : "border-transparent opacity-70"
+              }`}
+            >
+              <Image src={src} alt="" fill sizes="80px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+
+        {/* Compact overview */}
+        <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 sm:mt-7 sm:rounded-3xl sm:p-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-500 sm:text-xs">
+            <span className="inline-flex items-center gap-1.5">
+              <Clock3 size={14} className="text-[#1974FF]" />
+              {trip.duration}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Waves size={14} className="text-[#1974FF]" />
+              Ocean experience
+            </span>
+          </div>
+          <h2 className="mt-3 text-base font-bold text-[#0A2E63] sm:text-lg">
+            {trip.title}
+          </h2>
+          <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
+            {trip.description}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {trip.highlights.map((highlight) => (
+              <span
+                key={highlight}
+                className="rounded-full bg-blue-50 px-2.5 py-1.5 text-[9px] font-medium text-[#1759B8] sm:text-[10px]"
+              >
+                {highlight}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* Dropdown information sections */}
+        <section className="mt-3 space-y-2.5">
+          <AccordionSection
+            title="Itinerary perjalanan"
+            eyebrow="Your journey"
+            icon={<CalendarDays size={17} />}
+            defaultOpen={false}
+          >
+            <div className="space-y-4">
+              {trip.itinerary.map((item, index) => (
+                <div key={`${item.time}-${item.title}`} className="flex gap-3">
+                  <div className="flex w-[58px] shrink-0 flex-col items-center">
+                    <span className="rounded-full bg-blue-50 px-2 py-1.5 text-[9px] font-bold text-[#1974FF]">
+                      {item.time}
+                    </span>
+                    {index !== trip.itinerary.length - 1 && (
+                      <span className="mt-2 min-h-6 w-px flex-1 bg-blue-100" />
+                    )}
+                  </div>
+                  <div className="pb-1">
+                    <h3 className="text-xs font-bold text-[#0A2E63]">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AccordionSection>
+
+          <AccordionSection
+            title="Termasuk dalam paket"
+            eyebrow="What's included"
+            icon={<CheckCircle2 size={17} />}
+          >
+            <ul className="space-y-2.5">
+              {trip.included.map((item) => (
+                <li
+                  key={item}
+                  className="flex gap-2 text-[11px] leading-relaxed text-slate-600"
+                >
+                  <CheckCircle2
+                    size={14}
+                    className="mt-0.5 shrink-0 text-emerald-600"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </AccordionSection>
+
+          <AccordionSection
+            title="Tidak termasuk"
+            eyebrow="What's excluded"
+            icon={<X size={17} />}
+          >
+            <ul className="space-y-2.5">
+              {trip.excluded.map((item) => (
+                <li
+                  key={item}
+                  className="flex gap-2 text-[11px] leading-relaxed text-slate-600"
+                >
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </AccordionSection>
+
+          <AccordionSection
+            title="Informasi perjalanan"
+            eyebrow="Before you go"
+            icon={<ShieldCheck size={17} />}
+          >
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-[#1974FF]" />
+                <div>
+                  <h3 className="text-xs font-bold text-[#0A2E63]">
+                    Meeting point
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                    {trip.meetingPoint}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <ShieldCheck
+                  size={16}
+                  className="mt-0.5 shrink-0 text-[#1974FF]"
+                />
+                <div>
+                  <h3 className="text-xs font-bold text-[#0A2E63]">
+                    Persiapan
+                  </h3>
+                  <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-relaxed text-slate-500">
+                    {trip.preparation.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3.5">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-amber-800">
+                  Catatan penting
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-[10px] leading-relaxed text-amber-900/80">
+                  {trip.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </AccordionSection>
+
+          <AccordionSection
+            title="Pertanyaan umum"
+            eyebrow="FAQ"
+            icon={<Users size={17} />}
+          >
+            {[
+              [
+                "Apakah jadwal dapat berubah?",
+                "Jadwal dan rute dapat menyesuaikan cuaca, kondisi laut, dan pertimbangan keselamatan.",
+              ],
+              [
+                "Bagaimana mengetahui harga dan ketersediaan?",
+                "Pilih jenis perjalanan lalu konsultasikan tanggal dan jumlah peserta kepada tim SHIAP. Harga dan ketersediaan akan dikonfirmasi.",
+              ],
+              [
+                "Apakah bisa request perjalanan private?",
+                "Bisa jika destinasi dan kondisi operasional memungkinkan. Pilih Private Trip untuk mengajukan kebutuhan perjalanan.",
+              ],
+            ].map(([question, answer], index) => (
+              <div key={question} className="border-b border-slate-100 last:border-0">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="flex w-full items-center justify-between gap-3 py-3 text-left text-[11px] font-semibold text-[#0A2E63]"
+                >
+                  {question}
+                  <ChevronDown
+                    size={15}
+                    className={`shrink-0 transition ${
+                      openFaq === index ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {openFaq === index && (
+                  <p className="pb-3 pr-6 text-[11px] leading-relaxed text-slate-500">
+                    {answer}
+                  </p>
+                )}
+              </div>
+            ))}
+          </AccordionSection>
+        </section>
+
+        {/* Booking mode selector */}
+        <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-4 lg:hidden">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#1974FF]">
+            Plan your journey
+          </p>
+          <h2 className="mt-1 text-sm font-bold text-[#0A2E63]">
+            Pilih pengalamanmu
+          </h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+            Tentukan model perjalanan. Harga, jadwal, dan ketersediaan akan dikonfirmasi tim SHIAP.
+          </p>
+          <ModeSelector trip={trip} mode={mode} setMode={setMode} />
+          <div className="mt-3 rounded-xl bg-[#F7F9FC] p-3 text-[11px] leading-relaxed text-slate-500">
+            {mode === "open" ? trip.openTripInfo : trip.privateTripInfo}
+          </div>
+          <Link
+            href={bookingHref}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1974FF] px-4 py-3 text-xs font-bold text-white"
+          >
+            Konsultasi & Booking <ArrowRight size={15} />
+          </Link>
+        </section>
+
+        {/* Desktop booking card */}
+        <aside className="mt-6 hidden h-fit rounded-3xl border border-slate-100 bg-white p-5 shadow-sm lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1 lg:block">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1974FF]">
+            Plan your journey
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-[#0A2E63]">
+            Pilih pengalamanmu
+          </h2>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Pilih model perjalanan. Tim SHIAP akan mengonfirmasi harga, jadwal, dan ketersediaan.
+          </p>
+          <ModeSelector trip={trip} mode={mode} setMode={setMode} />
+          <div className="mt-4 rounded-2xl bg-[#F7F9FC] p-4 text-xs leading-relaxed text-slate-500">
+            {mode === "open" ? trip.openTripInfo : trip.privateTripInfo}
+          </div>
+          <Link
+            href={bookingHref}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1974FF] px-4 py-3.5 text-sm font-bold text-white"
+          >
+            Lanjut konsultasi <ArrowRight size={16} />
+          </Link>
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
+            <Users size={12} /> Harga & ketersediaan dikonfirmasi admin
+          </p>
+        </aside>
+      </div>
+
+      {/* Mobile sticky booking bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 p-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-2xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              Mulai rencanakan
+            </p>
+            <p className="truncate text-xs font-bold text-[#0A2E63]">
+              {trip.title}
+            </p>
+          </div>
+          <Link
+            href={bookingHref}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#1974FF] px-4 py-3 text-[11px] font-bold text-white shadow-lg shadow-blue-500/20"
+          >
+            Konsultasi & Booking <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModeSelector({
+  trip,
+  mode,
+  setMode,
+}: {
+  trip: Trip;
+  mode: TripMode;
+  setMode: (mode: TripMode) => void;
+}) {
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2">
+      {(["open", "private"] as TripMode[]).map((option) => {
+        const enabled = trip.modes.includes(option);
+        const active = mode === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            disabled={!enabled}
+            onClick={() => setMode(option)}
+            className={`rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              active
+                ? "border-[#1974FF] bg-blue-50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <span
+              className={`block text-xs font-bold ${
+                active ? "text-[#1974FF]" : "text-[#0A2E63]"
+              }`}
+            >
+              {option === "open" ? "Open Trip" : "Private Trip"}
+            </span>
+            <span className="mt-1 block text-[9px] text-slate-500">
+              {enabled ? "Tersedia untuk konsultasi" : "Belum tersedia"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
