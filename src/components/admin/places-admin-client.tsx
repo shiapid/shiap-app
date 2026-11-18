@@ -53,6 +53,18 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
     finally { setBusy(""); }
   }
 
+  async function saveFreeProperty(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault(); const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") || "").trim(); const phone = normalizeIdPhone(String(form.get("whatsapp_phone") || ""));
+    if (name.length < 2 || name.length > 160 || !phone) return setMessage("Nama dan WhatsApp resmi wajib valid.");
+    const publish = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "publish";
+    await run('free-'+id,()=>supabase.rpc("admin_save_free_places_listing",{p_property_id:id,p_name:name,p_destination_id:String(form.get("destination_id")||""),p_whatsapp:phone,p_publish:publish}),publish?"Kontak diverifikasi dan properti diterbitkan.":"Properti disimpan.");
+  }
+  async function archiveProperty(item: Property) {
+    if (!window.confirm('Hapus properti "'+item.name+'" dari daftar dan direktori publik? Riwayat tetap tersimpan.')) return;
+    await run('delete-'+item.id,()=>supabase.from("places_properties").update({status:"archived"}).eq("id",item.id),"Properti dihapus dari daftar dan direktori publik.");
+  }
+
   async function updateProperty(event: FormEvent<HTMLFormElement>, id: string) {
     event.preventDefault(); const form = new FormData(event.currentTarget); const phone = normalizeIdPhone(String(form.get("whatsapp_phone") || ""));
     if (!phone) return setMessage("Nomor WhatsApp properti tidak valid.");
@@ -102,7 +114,24 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
       <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<BadgeCheck size={15}/>}Verifikasi &amp; Terbitkan</button>
     </form></section>
 
-    <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.length})</h2>{properties.length ? properties.map((item)=><article key={item.id} className={card}>
+    <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.filter(item=>item.status!=="archived").length})</h2>{properties.length ? properties.filter(item=>item.status!=="archived").map((item)=>{
+      const profile=profiles.find(p=>p.property_id===item.id);
+      const hasProfile=Boolean(profile && (profile.description || profile.cover_image_url || profile.gallery_urls?.length || profile.capacity || profile.starting_price_idr!=null || profile.facilities?.length || profile.room_summaries?.length || profile.policies || profile.map_url));
+      if(!hasProfile) return <article key={item.id} className={card}>
+        <form onSubmit={event=>void saveFreeProperty(event,item.id)} className="grid gap-3 sm:grid-cols-3">
+          <label className="text-xs font-semibold text-slate-600">Nama Properti<input name="name" required minLength={2} maxLength={160} defaultValue={item.name} className={input}/></label>
+          <label className="text-xs font-semibold text-slate-600">Destinasi<select name="destination_id" required defaultValue={item.destination_id} className={input}>{destinations.filter(d=>d.is_active||d.id===item.destination_id).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-600">Nomor WhatsApp Resmi<input name="whatsapp_phone" type="tel" required maxLength={40} defaultValue={item.whatsapp_phone} className={input}/></label>
+          <p className="text-xs text-slate-500 sm:col-span-3">{item.status==="published"?"Tayang":"Tidak tayang"} · {item.contact_verified_at?"Kontak telah diverifikasi":"Belum diverifikasi"}. Verifikasi &amp; Terbitkan menyatakan Admin telah memeriksa WhatsApp resmi.</p>
+          <div className="flex flex-wrap gap-2 sm:col-span-3">
+            <button disabled={Boolean(busy)} type="submit" value="save" className="min-h-11 rounded-xl border border-blue-200 px-4 text-xs font-bold text-[#1265D8]">Simpan perubahan</button>
+            <button disabled={Boolean(busy)} type="submit" value="publish" className="min-h-11 rounded-xl bg-[#1265D8] px-4 text-xs font-bold text-white">Verifikasi &amp; Terbitkan</button>
+            <button disabled={Boolean(busy)||!item.contact_verified_at} type="button" onClick={()=>void run('revoke-'+item.id,()=>supabase.rpc("admin_revoke_places_contact",{p_property_id:item.id}),"Verifikasi dicabut dan publikasi ditarik.")} className="min-h-11 rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-600 disabled:opacity-50">Tarik publikasi</button>
+            <button disabled={Boolean(busy)} type="button" onClick={()=>void archiveProperty(item)} className="min-h-11 rounded-xl border border-red-200 px-4 text-xs font-bold text-red-700">Hapus properti</button>
+          </div>
+        </form>
+      </article>;
+      return <article key={item.id} className={card}>
       <form onSubmit={(event)=>void updateProperty(event,item.id)} className="grid gap-2 sm:grid-cols-3">
         <label className="text-[10px] font-semibold text-slate-500">Nama<input name="name" required defaultValue={item.name} className={input}/></label>
         <label className="text-[10px] font-semibold text-slate-500">Slug<input name="slug" required defaultValue={item.slug} className={input}/></label>
@@ -134,7 +163,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         </form>
       </div>
       {item.is_demo ? <p className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-[10px] text-amber-900"><CircleAlert size={14}/>Properti demo tidak pernah ditampilkan sebagai listing nyata.</p> : null}
-    </article>) : <p className={card + " text-sm text-slate-500"}>Belum ada properti. Destinasi sudah siap, properti hanya muncul setelah verifikasi kontak.</p>}</section>
+    </article>}) : <p className={card + " text-sm text-slate-500"}>Belum ada properti. Destinasi sudah siap, properti hanya muncul setelah verifikasi kontak.</p>}</section>
 
     <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Places Premium · konfigurasi harga</h2><p className="mt-1 text-xs leading-5 text-slate-500">Pengaturan ini hanya menampilkan usulan/harga plan. Produk Premium tetap nonaktif; halaman ini tidak menerima langganan, booking, atau pembayaran.</p>{planDraft ? <form onSubmit={updatePlan} className="mt-3 grid gap-3 sm:grid-cols-3"><label className="text-xs font-semibold text-slate-600">Harga bulanan IDR<input type="number" min="0" step="1" required value={planDraft.premium_monthly_price_idr} onChange={(e)=>setPlanDraft({...planDraft,premium_monthly_price_idr:e.target.value})} className={input}/></label><label className="text-xs font-semibold text-slate-600">Status harga<select value={planDraft.price_status} onChange={(e)=>setPlanDraft({...planDraft,price_status:e.target.value as Plan["price_status"]})} className={input}><option value="proposed">Usulan</option><option value="actual">Harga aktual</option></select></label><label className="text-xs font-semibold text-slate-600">Maksimum unit<input type="number" min="1" step="1" required value={planDraft.max_units} onChange={(e)=>setPlanDraft({...planDraft,max_units:e.target.value})} className={input}/></label><button disabled={busy==="plan"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white sm:col-span-3"><Save size={14}/>Simpan konfigurasi</button></form> : <p className="mt-3 text-xs text-slate-500">Konfigurasi harga belum dapat dimuat.</p>}</section>
   </div>;
