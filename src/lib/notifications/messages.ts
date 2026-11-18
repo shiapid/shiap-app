@@ -3,12 +3,13 @@ export const notificationLabels: Record<string, string> = {
   payment_verified: "Pembayaran diverifikasi", payment_rejected: "Pembayaran perlu tindakan", booking_cancelled: "Booking dibatalkan",
   booking_expired: "Booking kedaluwarsa", travel_reminder: "Pengingat perjalanan / check-in", approval_required: "Perlu persetujuan Admin",
   activity_today: "Keberangkatan / check-in hari ini", delivery_failed: "Pengiriman email gagal",
+  trip_schedule_changed: "Perubahan jadwal Trip",
 };
 export type MessageBooking = {
   id: string; order_number: string; customer_name: string; customer_whatsapp: string; customer_email: string | null;
   user_id: string | null; order_status: string; payment_status: string; payment_enabled: boolean; total_amount: number;
   inventory_hold_expires_at: string | null;
-  booking_items: { id: string; service_name: string; date_start: string; date_end: string | null; trip_id?: string | null; property_id?: string | null; service_catalog_id?: string | null }[];
+  booking_items: { id: string; service_name: string; date_start: string; date_end: string | null; trip_id?: string | null; departure_id?: string | null; property_id?: string | null; service_catalog_id?: string | null }[];
 };
 export type MessageContext = { booking: MessageBooking; bank: string; location: string; schedule?: string };
 export function validEmail(value: string) { return value.length <= 254 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value); }
@@ -55,6 +56,7 @@ export function renderEmail(event: string, context: MessageContext, audience: st
     payment_rejected: "Bukti transfer memerlukan tindakan. Periksa alasan penolakan di Pesanan Saya lalu ikuti petunjuk Admin. Jika reservasi sudah berakhir, hubungi SHIAP.",
     booking_cancelled: "Status pesanan telah berubah menjadi dibatalkan. Jika sudah transfer, hubungi SHIAP untuk pemeriksaan manual. Pesan ini tidak mengonfirmasi refund.",
     booking_expired: "Reservasi telah kedaluwarsa. Jangan transfer ke pesanan ini. Jika sudah transfer, hubungi SHIAP untuk pemeriksaan manual.",
+    trip_schedule_changed: "Jadwal Trip pada pesanan Anda telah diperbarui. Periksa tanggal, waktu, titik temu, dan status terbaru pada detail pesanan sebelum berangkat.",
     travel_reminder: "Pengingat jadwal layanan Anda. Gunakan informasi lokasi dan titik temu yang telah dikonfirmasi. Bila detail belum tersedia, hubungi SHIAP.",
     approval_required: "Pesanan Experience memerlukan pemeriksaan dan persetujuan Admin sebelum pembayaran dibuka.",
     activity_today: "Terdapat layanan yang dijadwalkan hari ini. Periksa rincian dan kesiapan operasional.",
@@ -63,7 +65,7 @@ export function renderEmail(event: string, context: MessageContext, audience: st
   const paragraphs = ["Halo " + variables.customer_name + ",", explanations[event] || "Periksa status pesanan Anda.",
     "Kode booking: " + variables.booking_code, "Layanan: " + variables.services, "Total Pembayaran 100%: " + variables.total,
     ...(["booking_created","payment_reminder"].includes(event) ? ["Batas pembayaran: " + variables.deadline] : []),
-    ...(["travel_reminder","activity_today"].includes(event) ? [variables.schedule,variables.location] : []),
+    ...(["travel_reminder","activity_today","trip_schedule_changed"].includes(event) ? [variables.schedule,variables.location] : []),
     audience === "admin" ? "Notifikasi operasional untuk Admin SHIAP." : variables.access_instructions];
   const url = audience === "admin" ? "https://app.shiap.id/admin/bookings/" + encodeURIComponent(context.booking.id) : variables.booking_url;
   const text = [title,...paragraphs,url].join("\n\n");

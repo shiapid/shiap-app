@@ -33,7 +33,7 @@ export type Trip = {
   priceTiers?: { min_pax: number; max_pax: number; price_per_person: number }[];
   minPax?: number;
   maxPax?: number;
-  departures?: { id: string; departureDate: string; endDate?: string | null; pricePerPerson: number | null; minParticipants: number; maxParticipants: number; bookedSeats: number; status: string }[];
+  departures?: { id: string; departureDate: string; endDate?: string | null; departureTime?: string | null; meetingPoint?: string | null; pricePerPerson: number | null; minParticipants: number; maxParticipants: number; bookedSeats: number; status: string }[];
 };
 
 export const trips: Trip[] = [

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Check, ExternalLink, LoaderCircle, ShieldCheck, X, Pencil, Trash2, CircleDollarSign } from "lucide-react";
+import { canRemoveBookingFromList } from "@/lib/admin/booking-eligibility";
 
 type Payment = {
   id: string;
@@ -156,12 +157,21 @@ export default function BookingOperations({
   }
 
   async function deleteBooking() {
-    if (!window.confirm("Hapus booking ini secara permanen? Penghapusan hanya tersedia untuk booking belum lunas tanpa riwayat bukti pembayaran.")) return;
+    const reason = window.prompt("Alasan mengeluarkan booking final dari daftar aktif (minimal 3 karakter):")?.trim() || "";
+    if (reason.length < 3) return;
+    if (!window.confirm("Hapus booking ini dari daftar aktif? Data transaksi tidak akan dihapus dari database dan masih dapat dipulihkan.")) return;
     setBusy(true); setError(""); setNotice("");
-    const { error: rpcError } = await supabase.rpc("admin_delete_unpaid_booking", { p_booking_id: bookingId });
-    if (rpcError) { setError(rpcError.message); setBusy(false); return; }
-    router.push("/admin/bookings"); router.refresh();
+    try {
+      const response = await fetch("/api/admin/bookings/manage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ booking_ids: [bookingId], action: "remove", scope: "active", reason }) });
+      const result = await response.json();
+      const row = result.results?.[0];
+      if (!response.ok || row?.result !== "success") throw new Error(row?.message || result.error || "Booking tidak dapat dikeluarkan dari daftar.");
+      router.push("/admin/bookings"); router.refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Tindakan gagal."); }
+    finally { setBusy(false); }
   }
+
+  const removable = canRemoveBookingFromList({ order_status: orderStatus, payment_status: paymentStatus, hasPendingProof: payments.some((payment) => payment.status === "pending") });
 
   return (
     <div className="mt-4 space-y-4">
@@ -187,7 +197,7 @@ export default function BookingOperations({
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={busy} onClick={() => setShowEditor((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-[#0A2E63]"><Pencil size={14}/> Edit data booking</button>
           {paymentStatus === "unpaid" && ["pending_confirmation", "confirmed"].includes(orderStatus) && <button disabled={busy} onClick={() => void markPaymentReceived()} className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><CircleDollarSign size={15}/> Verifikasi transfer penuh tanpa bukti</button>}
-          {paymentStatus === "unpaid" && orderStatus !== "completed" && <button disabled={busy} onClick={() => void deleteBooking()} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700 disabled:opacity-50"><Trash2 size={14}/> Hapus booking</button>}
+          {removable && <button disabled={busy} onClick={() => void deleteBooking()} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700 disabled:opacity-50"><Trash2 size={14}/> Hapus dari Daftar</button>}
           {orderStatus === "pending_confirmation" && <>
             {paymentStatus === "paid" && <button disabled={busy} onClick={() => void changeStatus("confirmed")} className="rounded-xl bg-green-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Konfirmasi booking lunas</button>}
             <button disabled={busy} onClick={() => void changeStatus("rejected")} className="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Tolak booking</button>
