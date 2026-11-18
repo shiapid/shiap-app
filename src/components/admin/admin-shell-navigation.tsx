@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BedDouble, Bike, CalendarDays, Camera, ChevronDown, ChevronRight, ClipboardList, LayoutDashboard, LoaderCircle, LogOut, Menu, Palette, Search, Settings, Ship, Sparkles, UserRound, Users, Wallet, Waves, X } from "lucide-react";
+import { Bell, BedDouble, Bike, Building2, CalendarDays, Camera, ChevronDown, ChevronRight, ClipboardList, LayoutDashboard, LoaderCircle, LogOut, Menu, Palette, Search, Settings, Ship, Sparkles, UserRound, Users, Wallet, Waves, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { adminReleaseHistory, adminReleaseVersion } from "@/lib/admin/release-notes";
 import { NotificationBell } from "@/components/admin/notification-center";
@@ -26,6 +26,7 @@ const groups = [
     { href: "/admin/rental", label: "Rental", icon: Bike },
     { href: "/admin/shinema", label: "Shinema", icon: Camera },
     { href: "/admin/experiences", label: "Experience", icon: Waves },
+    { href: "/admin/places", label: "Places", icon: Building2 },
   ] },
   { label: "CUSTOMER & SETTINGS", items: [
     { href: "/admin/customers", label: "Pelanggan", icon: Users },

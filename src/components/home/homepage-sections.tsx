@@ -39,6 +39,7 @@ type FeaturedTrip = Pick<Trip, "slug" | "title" | "location" | "duration" | "des
 const mainServices = [
   { name: "Strip", description: "Paket perjalanan", href: "/trip", iconKey: "trip" as const },
   { name: "Stay", description: "Villa & penginapan", href: "/stay", iconKey: "stay" as const },
+  { name: "Places", description: "Penginapan terverifikasi", href: "/places", iconKey: "places" as const },
   { name: "Aktivitas", description: "Wahana & laut", href: "/activities", iconKey: "activities" as const },
   { name: "Shinema", description: "Foto & video", href: "/shinema", iconKey: "shinema" as const },
   { name: "Rental", description: "Peralatan wisata", href: "/rental", iconKey: "rental" as const },

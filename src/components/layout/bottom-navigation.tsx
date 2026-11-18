@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, House, TicketCheck, UserRound } from "lucide-react";
+import { Building2, Compass, House, TicketCheck, UserRound } from "lucide-react";
 import { SiteIcon } from "@/components/site/site-icon-provider";
 
 const navigationItems = [
@@ -10,6 +10,7 @@ const navigationItems = [
   { label: "Jelajahi", href: "/explore", icon: Compass, iconKey: "explore" as const },
   { label: "Booking", href: "/booking", icon: TicketCheck, iconKey: "booking" as const },
   { label: "Akun", href: "/profile", icon: UserRound, iconKey: "profile" as const },
+  { label: "Places", href: "/places", icon: Building2 },
 ];
 
 function PendingHint() {
@@ -43,14 +44,14 @@ export default function BottomNavigation() {
 
   return (
     <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-[60] border-t border-[#DCE8F6] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(10,46,99,0.09)] backdrop-blur-xl md:hidden">
-      <div className="mx-auto grid h-[66px] max-w-lg grid-cols-4 gap-1 px-2">
+      <div className="mx-auto grid h-[66px] max-w-lg grid-cols-5 gap-0.5 px-1">
         {navigationItems.map(({ label, href, icon: Icon, iconKey }) => {
           const active = matchesNavigation(pathname, href);
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`relative my-1 flex flex-col items-center justify-center gap-1 rounded-2xl transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#1974FF] ${active ? "bg-[#EAF3FC] text-[#1974FF]" : "text-slate-500 hover:bg-slate-50 hover:text-[#0A2E63]"}`}>
               <PendingHint />
-              <SiteIcon iconKey={iconKey} fallback={Icon} size={21} strokeWidth={active ? 2.3 : 1.8} />
-              <span className={`text-[10px] font-bold ${active ? "text-[#1974FF]" : "text-slate-500"}`}>{label}</span>
+              {iconKey ? <SiteIcon iconKey={iconKey} fallback={Icon} size={21} strokeWidth={active ? 2.3 : 1.8} /> : <Icon size={21} strokeWidth={active ? 2.3 : 1.8} aria-hidden="true"/>}
+              <span className={`text-[9px] font-bold min-[380px]:text-[10px] ${active ? "text-[#1974FF]" : "text-slate-500"}`}>{label}</span>
             </Link>
           );
         })}

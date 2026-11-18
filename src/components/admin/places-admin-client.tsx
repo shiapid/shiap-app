@@ -1,0 +1,156 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, CircleAlert, LoaderCircle, Plus, Save } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { normalizeIdPhone } from "@/lib/places/utils";
+
+type Destination = { id: string; slug: string; name: string; canonical_name: string; city: string | null; province: string | null; aliases: string[]; is_active: boolean };
+type Property = { id: string; slug: string; name: string; destination_id: string; accommodation_type: string; whatsapp_phone: string; status: string; is_demo: boolean; contact_verified_at: string | null; contact_verification_expires_at: string | null };
+type Profile = { property_id: string; description: string | null; cover_image_url: string | null; gallery_urls: string[]; capacity: number | null; facilities: string[]; room_summaries: { name?: string; capacity?: number; description?: string }[]; starting_price_idr: number | null; policies: string | null; map_url: string | null };
+type Plan = { premium_monthly_price_idr: number; price_status: "proposed" | "actual"; max_units: number; premium_enabled: boolean };
+const input = "mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#0A2E63] outline-none focus:border-[#1265D8] focus:ring-2 focus:ring-blue-100";
+const card = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5";
+const options = [["villa","Villa"],["hotel","Hotel"],["homestay","Homestay"],["guesthouse","Guest house"],["resort","Resort"],["other","Lainnya"]];
+const statuses = [["draft","Draft"],["pending_verification","Menunggu verifikasi"],["published","Tayang"],["suspended","Ditangguhkan"],["archived","Arsip"]];
+const slugify = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 100);
+
+export function PlacesAdminClient({ destinations, properties, profiles, plan, loadError }: { destinations: Destination[]; properties: Property[]; profiles: Profile[]; plan: Plan | null; loadError: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+  const [destination, setDestination] = useState({ name: "", city: "", province: "" });
+  const [property, setProperty] = useState({ name: "", slug: "", destination_id: "", accommodation_type: "villa", whatsapp_phone: "", description: "", cover_image_url: "", facilities: "", capacity: "", starting_price_idr: "", policies: "", map_url: "" });
+  const [planDraft, setPlanDraft] = useState(plan ? { premium_monthly_price_idr: String(plan.premium_monthly_price_idr), price_status: plan.price_status, max_units: String(plan.max_units) } : null);
+  const supabase = createClient();
+  async function run(key: string, action: () => PromiseLike<{ error: { message?: string } | null }>, success: string) {
+    setBusy(key); setMessage("");
+    try { const result = await action(); if (result.error) throw new Error(result.error.message || "Permintaan gagal."); setMessage(success); router.refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Perubahan belum dapat disimpan."); }
+    finally { setBusy(""); }
+  }
+
+  async function createDestination(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const slug = slugify(destination.name);
+    if (!slug || !destination.name.trim()) return setMessage("Nama destinasi wajib diisi.");
+    await run("destination", () => supabase.from("places_destinations").insert({ slug, name: destination.name.trim(), canonical_name: destination.name.trim(), city: destination.city.trim() || null, province: destination.province.trim() || null, is_active: true }).select().maybeSingle(), "Destinasi ditambahkan.");
+    setDestination({ name: "", city: "", province: "" });
+  }
+
+  async function createProperty(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const phone = normalizeIdPhone(property.whatsapp_phone);
+    const slug = slugify(property.slug || property.name);
+    if (!phone) return setMessage("Nomor WhatsApp properti harus valid dan dapat dihubungi.");
+    if (!slug || !property.destination_id) return setMessage("Slug dan destinasi wajib dipilih.");
+    for (const value of [property.cover_image_url, property.map_url]) if (value && !/^https:\/\//i.test(value)) return setMessage("Tautan foto dan peta harus menggunakan HTTPS.");
+    setBusy("property"); setMessage("");
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from("places_properties").insert({ slug, name: property.name.trim(), destination_id: property.destination_id, accommodation_type: property.accommodation_type, whatsapp_phone: phone, status: "pending_verification", is_demo: false, created_by: auth.user?.id ?? null }).select("id").single();
+      if (error || !data) throw new Error(error?.message || "Properti belum tersimpan.");
+      const profileResult = await supabase.from("places_property_profiles").insert({ property_id: data.id, description: property.description.trim() || null, cover_image_url: property.cover_image_url.trim() || null, facilities: property.facilities.split(",").map((item) => item.trim()).filter(Boolean), capacity: property.capacity ? Number(property.capacity) : null, starting_price_idr: property.starting_price_idr ? Number(property.starting_price_idr) : null, policies: property.policies.trim() || null, map_url: property.map_url.trim() || null });
+      if (profileResult.error) throw new Error("Properti tersimpan sebagai draft verifikasi, tetapi profilnya belum tersimpan. " + profileResult.error.message);
+      setMessage("Properti tersimpan dan menunggu verifikasi kontak. Properti belum ditayangkan.");
+      setProperty({ name: "", slug: "", destination_id: "", accommodation_type: "villa", whatsapp_phone: "", description: "", cover_image_url: "", facilities: "", capacity: "", starting_price_idr: "", policies: "", map_url: "" });
+      router.refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Properti belum dapat disimpan."); }
+    finally { setBusy(""); }
+  }
+
+  async function updateProperty(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault(); const form = new FormData(event.currentTarget); const phone = normalizeIdPhone(String(form.get("whatsapp_phone") || ""));
+    if (!phone) return setMessage("Nomor WhatsApp properti tidak valid.");
+    const status = String(form.get("status") || "draft");
+    if (!statuses.some(([value]) => value === status)) return setMessage("Status properti tidak valid.");
+    await run(`property-${id}`, () => supabase.from("places_properties").update({ name: String(form.get("name") || "").trim(), slug: slugify(String(form.get("slug") || "")), destination_id: String(form.get("destination_id") || ""), accommodation_type: String(form.get("accommodation_type") || "other"), whatsapp_phone: phone, status }).eq("id", id), "Data properti diperbarui.");
+  }
+
+  async function updateProfile(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault(); const form = new FormData(event.currentTarget); const price = String(form.get("starting_price_idr") || ""); const capacity = String(form.get("capacity") || "");
+    const cover = String(form.get("cover_image_url") || "").trim(); const map = String(form.get("map_url") || "").trim();
+    if (cover && !/^https:\/\//i.test(cover) || map && !/^https:\/\//i.test(map)) return setMessage("Tautan foto dan peta harus menggunakan HTTPS.");
+    if (price && (!/^\d+$/.test(price) || !Number.isSafeInteger(Number(price)))) return setMessage("Harga harus berupa integer IDR non-negatif.");
+    await run(`profile-${id}`, () => supabase.from("places_property_profiles").upsert({ property_id: id, description: String(form.get("description") || "").trim() || null, cover_image_url: cover || null, capacity: capacity ? Number(capacity) : null, starting_price_idr: price ? Number(price) : null, facilities: String(form.get("facilities") || "").split(",").map((item) => item.trim()).filter(Boolean), policies: String(form.get("policies") || "").trim() || null, map_url: map || null }, { onConflict: "property_id" }), "Profil Places diperbarui.");
+  }
+
+  async function verifyContact(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault(); const form = new FormData(event.currentTarget); const expiry = String(form.get("valid_until") || "");
+    const expiryDate = expiry ? new Date(`${expiry}T23:59:59`) : null;
+    if (!expiryDate || Number.isNaN(expiryDate.getTime()) || expiryDate <= new Date()) return setMessage("Tanggal masa verifikasi harus berada di masa depan.");
+    const validUntil = expiryDate.toISOString();
+    await run(`verify-${id}`, async () => {
+      const { error } = await supabase.rpc("admin_record_places_contact_verification", { p_property_id: id, p_channel: String(form.get("channel")), p_evidence_note: String(form.get("evidence_note") || ""), p_evidence_private_path: null, p_valid_until: validUntil });
+      return { error };
+    }, "Verifikasi kontak tersimpan. Pilih status Tayang setelah tinjauan siap dipublikasikan.");
+  }
+
+  async function updatePlan(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!planDraft) return;
+    const price = Number(planDraft.premium_monthly_price_idr); const units = Number(planDraft.max_units);
+    if (!Number.isSafeInteger(price) || price < 0 || !Number.isInteger(units) || units < 1) return setMessage("Harga harus integer IDR non-negatif dan batas unit minimal 1.");
+    const { data: auth } = await supabase.auth.getUser();
+    await run("plan", () => supabase.from("places_plan_settings").update({ premium_monthly_price_idr: price, price_status: planDraft.price_status, max_units: units, updated_by: auth.user?.id ?? null }).eq("id", true), "Konfigurasi harga Places Premium disimpan.");
+  }
+
+  return <div className="space-y-5">
+    <header><p className="text-[10px] font-extrabold tracking-[.17em] text-[#1265D8]">PLACES · OPERASIONAL</p><h1 className="mt-1 text-2xl font-extrabold text-[#0A2E63]">Direktori & verifikasi</h1><p className="mt-1 text-sm text-slate-500">Listing hanya tampil setelah kontak diverifikasi dan statusnya dipublikasikan.</p></header>
+    {message ? <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-[#0A2E63]">{message}</p> : null}
+    {loadError ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Data Places belum tersedia. Pastikan migration Places telah diterapkan pada lingkungan non-production.</p> : null}
+
+    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Destinasi</h2><form onSubmit={createDestination} className="mt-3 grid gap-2 sm:grid-cols-4"><input required maxLength={120} placeholder="Nama destinasi" value={destination.name} onChange={(e)=>setDestination({...destination,name:e.target.value})} className={input}/><input placeholder="Kota" value={destination.city} onChange={(e)=>setDestination({...destination,city:e.target.value})} className={input}/><input placeholder="Provinsi" value={destination.province} onChange={(e)=>setDestination({...destination,province:e.target.value})} className={input}/><button disabled={busy==="destination"} className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1265D8] px-4 text-xs font-bold text-white disabled:opacity-50"><Plus size={15}/> Tambah destinasi</button></form><div className="mt-3 flex flex-wrap gap-2">{destinations.map((item)=><span key={item.id} className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-700">{item.name}{item.city?` · ${item.city}`:""}</span>)}</div></section>
+
+    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Tambah properti</h2><p className="mt-1 text-xs text-slate-500">Properti baru selalu menunggu verifikasi; tidak dapat langsung masuk direktori publik.</p><form onSubmit={createProperty} className="mt-3 grid gap-3 sm:grid-cols-2">
+      <label className="text-xs font-semibold text-slate-600">Nama properti<input required maxLength={160} className={input} value={property.name} onChange={(e)=>setProperty({...property,name:e.target.value,slug:property.slug||slugify(e.target.value)})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Slug<input required maxLength={100} className={input} value={property.slug} onChange={(e)=>setProperty({...property,slug:slugify(e.target.value)})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Destinasi<select required className={input} value={property.destination_id} onChange={(e)=>setProperty({...property,destination_id:e.target.value})}><option value="">Pilih destinasi</option>{destinations.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="text-xs font-semibold text-slate-600">Jenis penginapan<select className={input} value={property.accommodation_type} onChange={(e)=>setProperty({...property,accommodation_type:e.target.value})}>{options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="text-xs font-semibold text-slate-600">WhatsApp resmi<input required className={input} placeholder="08… atau +62…" value={property.whatsapp_phone} onChange={(e)=>setProperty({...property,whatsapp_phone:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Kapasitas (opsional)<input type="number" min="1" step="1" className={input} value={property.capacity} onChange={(e)=>setProperty({...property,capacity:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Harga mulai IDR (opsional)<input type="number" min="0" step="1" className={input} value={property.starting_price_idr} onChange={(e)=>setProperty({...property,starting_price_idr:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Foto utama HTTPS (opsional)<input type="url" className={input} value={property.cover_image_url} onChange={(e)=>setProperty({...property,cover_image_url:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Deskripsi<textarea maxLength={5000} rows={3} className={`${input} h-auto py-2`} value={property.description} onChange={(e)=>setProperty({...property,description:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Fasilitas (pisahkan dengan koma)<input className={input} value={property.facilities} onChange={(e)=>setProperty({...property,facilities:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Link peta HTTPS (opsional)<input type="url" className={input} value={property.map_url} onChange={(e)=>setProperty({...property,map_url:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Kebijakan (opsional)<textarea maxLength={4000} rows={2} className={`${input} h-auto py-2`} value={property.policies} onChange={(e)=>setProperty({...property,policies:e.target.value})}/></label>
+      <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<Plus size={15}/>}Simpan sebagai menunggu verifikasi</button>
+    </form></section>
+
+    <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.length})</h2>{properties.length ? properties.map((item)=><article key={item.id} className={card}>
+      <form onSubmit={(event)=>void updateProperty(event,item.id)} className="grid gap-2 sm:grid-cols-3">
+        <label className="text-[10px] font-semibold text-slate-500">Nama<input name="name" required defaultValue={item.name} className={input}/></label>
+        <label className="text-[10px] font-semibold text-slate-500">Slug<input name="slug" required defaultValue={item.slug} className={input}/></label>
+        <label className="text-[10px] font-semibold text-slate-500">WhatsApp resmi<input name="whatsapp_phone" required defaultValue={item.whatsapp_phone} className={input}/></label>
+        <label className="text-[10px] font-semibold text-slate-500">Destinasi<select name="destination_id" defaultValue={item.destination_id} className={input}>{destinations.map((dest)=><option key={dest.id} value={dest.id}>{dest.name}</option>)}</select></label>
+        <label className="text-[10px] font-semibold text-slate-500">Jenis<select name="accommodation_type" defaultValue={item.accommodation_type} className={input}>{options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="text-[10px] font-semibold text-slate-500">Status<select name="status" defaultValue={item.status} className={input}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <button disabled={busy===`property-${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 text-xs font-bold text-[#1265D8] disabled:opacity-50 sm:col-span-3"><Save size={14}/> Simpan properti</button>
+      </form>
+      <form onSubmit={(event)=>void updateProfile(event,item.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">
+        {(()=>{const p=profiles.find((profile)=>profile.property_id===item.id);return <>
+          <label className="text-[10px] font-semibold text-slate-500 sm:col-span-3">Deskripsi<textarea name="description" defaultValue={p?.description??""} rows={2} className={`${input} h-auto py-2`}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Foto HTTPS<input type="url" name="cover_image_url" defaultValue={p?.cover_image_url??""} className={input}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Kapasitas<input type="number" min="1" step="1" name="capacity" defaultValue={p?.capacity??""} className={input}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Harga mulai IDR<input type="number" min="0" step="1" name="starting_price_idr" defaultValue={p?.starting_price_idr??""} className={input}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Fasilitas, pisahkan koma<input name="facilities" defaultValue={(p?.facilities??[]).join(", ")} className={input}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Link peta HTTPS<input type="url" name="map_url" defaultValue={p?.map_url??""} className={input}/></label>
+          <label className="text-[10px] font-semibold text-slate-500">Kebijakan<textarea name="policies" defaultValue={p?.policies??""} rows={1} className={`${input} h-auto py-2`}/></label>
+        </>;})()}
+        <button disabled={busy===`profile-${item.id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-[#1265D8] disabled:opacity-50 sm:col-span-3"><Save size={13}/> Simpan profil publik</button>
+      </form>
+      <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><p className="flex items-center gap-2 text-xs font-bold text-[#0A2E63]"><BadgeCheck size={15} className="text-[#1265D8]"/>Verifikasi kontak</p><p className="mt-1 text-[10px] text-slate-600">Terakhir: {item.contact_verified_at?new Date(item.contact_verified_at).toLocaleDateString("id-ID"):"Belum diverifikasi"} · Berlaku sampai {item.contact_verification_expires_at?new Date(item.contact_verification_expires_at).toLocaleDateString("id-ID"):"—"}</p>
+        <form onSubmit={(event)=>void verifyContact(event,item.id)} className="mt-2 grid gap-2 sm:grid-cols-[1fr_1.4fr_1fr_auto]">
+          <select name="channel" className={input}><option value="whatsapp">WhatsApp</option><option value="phone">Telepon</option><option value="email">Email</option><option value="in_person">Langsung</option><option value="business_documents">Dokumen bisnis</option><option value="other">Lainnya</option></select>
+          <input name="evidence_note" required minLength={3} maxLength={2000} placeholder="Catatan bukti internal" className={input}/>
+          <label className="text-[10px] font-semibold text-slate-500">Berlaku sampai<input required type="date" min={new Date().toISOString().slice(0,10)} name="valid_until" className={input}/></label>
+          <button disabled={busy===`verify-${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#1265D8] px-3 text-[10px] font-bold text-white disabled:opacity-50"><BadgeCheck size={14}/>Verifikasi</button>
+        </form>
+      </div>
+      {item.is_demo ? <p className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-[10px] text-amber-900"><CircleAlert size={14}/>Properti demo tidak pernah ditampilkan sebagai listing nyata.</p> : null}
+    </article>) : <p className={card + " text-sm text-slate-500"}>Belum ada properti. Destinasi sudah siap, properti hanya muncul setelah verifikasi kontak.</p>}</section>
+
+    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Places Premium · konfigurasi harga</h2><p className="mt-1 text-xs leading-5 text-slate-500">Pengaturan ini hanya menampilkan usulan/harga plan. Produk Premium tetap nonaktif; halaman ini tidak menerima langganan, booking, atau pembayaran.</p>{planDraft ? <form onSubmit={updatePlan} className="mt-3 grid gap-3 sm:grid-cols-3"><label className="text-xs font-semibold text-slate-600">Harga bulanan IDR<input type="number" min="0" step="1" required value={planDraft.premium_monthly_price_idr} onChange={(e)=>setPlanDraft({...planDraft,premium_monthly_price_idr:e.target.value})} className={input}/></label><label className="text-xs font-semibold text-slate-600">Status harga<select value={planDraft.price_status} onChange={(e)=>setPlanDraft({...planDraft,price_status:e.target.value as Plan["price_status"]})} className={input}><option value="proposed">Usulan</option><option value="actual">Harga aktual</option></select></label><label className="text-xs font-semibold text-slate-600">Maksimum unit<input type="number" min="1" step="1" required value={planDraft.max_units} onChange={(e)=>setPlanDraft({...planDraft,max_units:e.target.value})} className={input}/></label><button disabled={busy==="plan"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white sm:col-span-3"><Save size={14}/>Simpan konfigurasi</button></form> : <p className="mt-3 text-xs text-slate-500">Konfigurasi harga belum dapat dimuat.</p>}</section>
+  </div>;
+}
