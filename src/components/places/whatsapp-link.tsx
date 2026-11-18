@@ -11,6 +11,6 @@ export function PlacesWhatsAppLink({ href, propertyId, refCode, className }: { h
       keepalive: true,
     }).catch(() => undefined);
   }} className={className}>
-    <MessageCircle size={16} aria-hidden="true" /> WhatsApp resmi
+    <MessageCircle size={16} aria-hidden="true" /> Hubungi via WhatsApp
   </a>;
 }

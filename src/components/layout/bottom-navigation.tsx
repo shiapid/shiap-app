@@ -49,7 +49,7 @@ export default function BottomNavigation() {
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`relative my-1 flex flex-col items-center justify-center gap-1 rounded-2xl transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#1974FF] ${active ? "bg-[#EAF3FC] text-[#1974FF]" : "text-slate-500 hover:bg-slate-50 hover:text-[#0A2E63]"}`}>
               <PendingHint />
-              {iconKey ? <SiteIcon iconKey={iconKey} fallback={Icon} size={21} strokeWidth={active ? 2.3 : 1.8} /> : <Icon size={21} strokeWidth={active ? 2.3 : 1.8} aria-hidden="true"/>}
+              <SiteIcon iconKey={iconKey} fallback={Icon} size={21} strokeWidth={active ? 2.3 : 1.8} />
               <span className={`text-[9px] font-bold min-[380px]:text-[10px] ${active ? "text-[#1974FF]" : "text-slate-500"}`}>{label}</span>
             </Link>
           );
