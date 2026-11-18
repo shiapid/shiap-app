@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Compass, House, TicketCheck, UserRound } from "lucide-react";
+import { Compass, House, TicketCheck, UserRound } from "lucide-react";
 import { SiteIcon } from "@/components/site/site-icon-provider";
 
 const navigationItems = [
@@ -10,7 +10,6 @@ const navigationItems = [
   { label: "Jelajahi", href: "/explore", icon: Compass, iconKey: "explore" as const },
   { label: "Booking", href: "/booking", icon: TicketCheck, iconKey: "booking" as const },
   { label: "Akun", href: "/profile", icon: UserRound, iconKey: "profile" as const },
-  { label: "Places", href: "/places", icon: Building2 },
 ];
 
 function PendingHint() {
@@ -44,7 +43,7 @@ export default function BottomNavigation() {
 
   return (
     <nav aria-label="Navigasi utama" className="fixed inset-x-0 bottom-0 z-[60] border-t border-[#DCE8F6] bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(10,46,99,0.09)] backdrop-blur-xl md:hidden">
-      <div className="mx-auto grid h-[66px] max-w-lg grid-cols-5 gap-0.5 px-1">
+      <div className="mx-auto grid h-[66px] max-w-lg grid-cols-4 gap-0.5 px-1">
         {navigationItems.map(({ label, href, icon: Icon, iconKey }) => {
           const active = matchesNavigation(pathname, href);
           return (
