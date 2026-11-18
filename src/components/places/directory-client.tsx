@@ -11,14 +11,15 @@ function PropertyCard({ item }: { item: DirectoryListing }) {
   const price = formatIdr(item.starting_price_idr);
   return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(10,46,99,.045)]">
     <Link href={`/places/${encodeURIComponent(item.slug)}`} className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1265D8]">
-      <div className="relative aspect-[4/3] bg-[#E9EFF6]">
+      {item.cover_image_url ? <div className="relative aspect-[4/3] bg-[#E9EFF6]">
         {item.cover_image_url ? <Image src={item.cover_image_url} alt={item.name} fill unoptimized sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 32vw" className="object-cover transition duration-500 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center text-[#1265D8]/45"><Building2 size={38} strokeWidth={1.4}/></div>}
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-[10px] font-bold text-[#0A2E63]"><BadgeCheck size={14} className="text-[#1265D8]"/> Kontak terverifikasi</span>
-      </div>
+      </div> : null}
       <div className="p-4">
         <p className="flex items-center gap-1.5 text-xs text-slate-500"><MapPin size={14} className="shrink-0 text-[#1265D8]"/>{item.destination_name}{item.city ? ` · ${item.city}` : ""}</p>
         <h2 className="mt-2 line-clamp-2 text-base font-extrabold text-[#0A2E63]">{item.name}</h2>
-        <p className="mt-1 text-xs text-slate-500">{accommodationLabels[item.accommodation_type] ?? "Penginapan"}</p>
+        <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1265D8]"><BadgeCheck size={14}/>Kontak terverifikasi</p>
+        {item.accommodation_type !== "other" ? <p className="mt-1 text-xs text-slate-500">{accommodationLabels[item.accommodation_type] ?? "Penginapan"}</p> : null}
         {item.capacity ? <p className="mt-2 text-xs text-slate-600">Kapasitas hingga {item.capacity} tamu</p> : null}
         {price ? <p className="mt-2 text-xs font-bold text-[#1265D8]">Mulai {price}</p> : null}
       </div>

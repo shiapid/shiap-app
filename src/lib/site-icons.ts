@@ -5,6 +5,7 @@ export const SITE_ICON_SLOTS = [
   { key: "profile", label: "Profil", description: "Navigasi akun pelanggan." },
   { key: "trip", label: "Trip", description: "Menu layanan Trip." },
   { key: "stay", label: "Stay", description: "Menu layanan Stay dan Villa." },
+  { key: "places", label: "Places", description: "Kartu layanan Places di Beranda." },
   { key: "activities", label: "Wahana & Aktivitas", description: "Menu aktivitas laut." },
   { key: "rental", label: "Rental", description: "Menu layanan sewa perlengkapan wisata." },
   { key: "shinema", label: "Shinema", description: "Menu layanan dokumentasi." },

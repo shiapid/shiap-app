@@ -21,7 +21,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [destination, setDestination] = useState({ name: "", city: "", province: "" });
-  const [property, setProperty] = useState({ name: "", slug: "", destination_id: "", accommodation_type: "villa", whatsapp_phone: "", description: "", cover_image_url: "", facilities: "", capacity: "", starting_price_idr: "", policies: "", map_url: "" });
+  const [property, setProperty] = useState({ name: "", destination_id: "", whatsapp_phone: "" });
   const [planDraft, setPlanDraft] = useState(plan ? { premium_monthly_price_idr: String(plan.premium_monthly_price_idr), price_status: plan.price_status, max_units: String(plan.max_units) } : null);
   const supabase = createClient();
   async function run(key: string, action: () => PromiseLike<{ error: { message?: string } | null }>, success: string) {
@@ -42,20 +42,13 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   async function createProperty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const phone = normalizeIdPhone(property.whatsapp_phone);
-    const slug = slugify(property.slug || property.name);
-    if (!phone) return setMessage("Nomor WhatsApp properti harus valid dan dapat dihubungi.");
-    if (!slug || !property.destination_id) return setMessage("Slug dan destinasi wajib dipilih.");
-    for (const value of [property.cover_image_url, property.map_url]) if (value && !/^https:\/\//i.test(value)) return setMessage("Tautan foto dan peta harus menggunakan HTTPS.");
+    if (!phone || property.name.trim().length < 2 || !property.destination_id) return setMessage("Nama, destinasi, dan WhatsApp resmi yang valid wajib diisi.");
     setBusy("property"); setMessage("");
     try {
-      const { data: auth } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from("places_properties").insert({ slug, name: property.name.trim(), destination_id: property.destination_id, accommodation_type: property.accommodation_type, whatsapp_phone: phone, status: "pending_verification", is_demo: false, created_by: auth.user?.id ?? null }).select("id").single();
-      if (error || !data) throw new Error(error?.message || "Properti belum tersimpan.");
-      const profileResult = await supabase.from("places_property_profiles").insert({ property_id: data.id, description: property.description.trim() || null, cover_image_url: property.cover_image_url.trim() || null, facilities: property.facilities.split(",").map((item) => item.trim()).filter(Boolean), capacity: property.capacity ? Number(property.capacity) : null, starting_price_idr: property.starting_price_idr ? Number(property.starting_price_idr) : null, policies: property.policies.trim() || null, map_url: property.map_url.trim() || null });
-      if (profileResult.error) throw new Error("Properti tersimpan sebagai draft verifikasi, tetapi profilnya belum tersimpan. " + profileResult.error.message);
-      setMessage("Properti tersimpan dan menunggu verifikasi kontak. Properti belum ditayangkan.");
-      setProperty({ name: "", slug: "", destination_id: "", accommodation_type: "villa", whatsapp_phone: "", description: "", cover_image_url: "", facilities: "", capacity: "", starting_price_idr: "", policies: "", map_url: "" });
-      router.refresh();
+      const { error } = await supabase.rpc("admin_create_free_places_listing", { p_name: property.name.trim(), p_destination_id: property.destination_id, p_whatsapp: phone });
+      if (error) throw new Error(error.message);
+      setMessage("Kontak terverifikasi dan properti diterbitkan.");
+      setProperty({ name: "", destination_id: "", whatsapp_phone: "" }); router.refresh();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Properti belum dapat disimpan."); }
     finally { setBusy(""); }
   }
@@ -102,20 +95,11 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
 
     <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Destinasi</h2><form onSubmit={createDestination} className="mt-3 grid gap-2 sm:grid-cols-4"><input required maxLength={120} placeholder="Nama destinasi" value={destination.name} onChange={(e)=>setDestination({...destination,name:e.target.value})} className={input}/><input placeholder="Kota" value={destination.city} onChange={(e)=>setDestination({...destination,city:e.target.value})} className={input}/><input placeholder="Provinsi" value={destination.province} onChange={(e)=>setDestination({...destination,province:e.target.value})} className={input}/><button disabled={busy==="destination"} className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1265D8] px-4 text-xs font-bold text-white disabled:opacity-50"><Plus size={15}/> Tambah destinasi</button></form><div className="mt-3 flex flex-wrap gap-2">{destinations.map((item)=><span key={item.id} className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-700">{item.name}{item.city?` · ${item.city}`:""}</span>)}</div></section>
 
-    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Tambah properti</h2><p className="mt-1 text-xs text-slate-500">Properti baru selalu menunggu verifikasi; tidak dapat langsung masuk direktori publik.</p><form onSubmit={createProperty} className="mt-3 grid gap-3 sm:grid-cols-2">
-      <label className="text-xs font-semibold text-slate-600">Nama properti<input required maxLength={160} className={input} value={property.name} onChange={(e)=>setProperty({...property,name:e.target.value,slug:property.slug||slugify(e.target.value)})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Slug<input required maxLength={100} className={input} value={property.slug} onChange={(e)=>setProperty({...property,slug:slugify(e.target.value)})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Destinasi<select required className={input} value={property.destination_id} onChange={(e)=>setProperty({...property,destination_id:e.target.value})}><option value="">Pilih destinasi</option>{destinations.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-      <label className="text-xs font-semibold text-slate-600">Jenis penginapan<select className={input} value={property.accommodation_type} onChange={(e)=>setProperty({...property,accommodation_type:e.target.value})}>{options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="text-xs font-semibold text-slate-600">WhatsApp resmi<input required className={input} placeholder="08… atau +62…" value={property.whatsapp_phone} onChange={(e)=>setProperty({...property,whatsapp_phone:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Kapasitas (opsional)<input type="number" min="1" step="1" className={input} value={property.capacity} onChange={(e)=>setProperty({...property,capacity:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Harga mulai IDR (opsional)<input type="number" min="0" step="1" className={input} value={property.starting_price_idr} onChange={(e)=>setProperty({...property,starting_price_idr:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Foto utama HTTPS (opsional)<input type="url" className={input} value={property.cover_image_url} onChange={(e)=>setProperty({...property,cover_image_url:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Deskripsi<textarea maxLength={5000} rows={3} className={`${input} h-auto py-2`} value={property.description} onChange={(e)=>setProperty({...property,description:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Fasilitas (pisahkan dengan koma)<input className={input} value={property.facilities} onChange={(e)=>setProperty({...property,facilities:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Link peta HTTPS (opsional)<input type="url" className={input} value={property.map_url} onChange={(e)=>setProperty({...property,map_url:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Kebijakan (opsional)<textarea maxLength={4000} rows={2} className={`${input} h-auto py-2`} value={property.policies} onChange={(e)=>setProperty({...property,policies:e.target.value})}/></label>
-      <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<Plus size={15}/>}Simpan sebagai menunggu verifikasi</button>
+    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Tambah properti Gratis</h2><p className="mt-1 text-xs text-slate-500">Dengan Verifikasi &amp; Terbitkan, Admin menyatakan telah memeriksa kepemilikan dan kebenaran WhatsApp resmi.</p><form onSubmit={createProperty} className="mt-3 grid gap-3 sm:grid-cols-2">
+      <label className="text-xs font-semibold text-slate-600">Nama Properti<input required minLength={2} maxLength={160} className={input} value={property.name} onChange={(e)=>setProperty({...property,name:e.target.value})}/></label>
+      <label className="text-xs font-semibold text-slate-600">Destinasi<select required className={input} value={property.destination_id} onChange={(e)=>setProperty({...property,destination_id:e.target.value})}><option value="">Pilih destinasi</option>{destinations.filter(d=>d.is_active).map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="text-xs font-semibold text-slate-600">Nomor WhatsApp Resmi<input required type="tel" maxLength={40} className={input} placeholder="08… atau +62…" value={property.whatsapp_phone} onChange={(e)=>setProperty({...property,whatsapp_phone:e.target.value})}/></label>
+      <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<BadgeCheck size={15}/>}Verifikasi &amp; Terbitkan</button>
     </form></section>
 
     <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.length})</h2>{properties.length ? properties.map((item)=><article key={item.id} className={card}>
@@ -140,6 +124,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         </>;})()}
         <button disabled={busy===`profile-${item.id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-[#1265D8] disabled:opacity-50 sm:col-span-3"><Save size={13}/> Simpan profil publik</button>
       </form>
+      <button type="button" disabled={Boolean(busy) || !item.contact_verified_at} onClick={()=>void run(`revoke-${item.id}`,()=>supabase.rpc("admin_revoke_places_contact",{p_property_id:item.id}),"Verifikasi dicabut dan publikasi ditarik.")} className="mt-3 min-h-11 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-700 disabled:opacity-50">Cabut verifikasi &amp; tarik publikasi</button>
       <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><p className="flex items-center gap-2 text-xs font-bold text-[#0A2E63]"><BadgeCheck size={15} className="text-[#1265D8]"/>Verifikasi kontak</p><p className="mt-1 text-[10px] text-slate-600">Terakhir: {item.contact_verified_at?new Date(item.contact_verified_at).toLocaleDateString("id-ID"):"Belum diverifikasi"} · Berlaku sampai {item.contact_verification_expires_at?new Date(item.contact_verification_expires_at).toLocaleDateString("id-ID"):"—"}</p>
         <form onSubmit={(event)=>void verifyContact(event,item.id)} className="mt-2 grid gap-2 sm:grid-cols-[1fr_1.4fr_1fr_auto]">
           <select name="channel" className={input}><option value="whatsapp">WhatsApp</option><option value="phone">Telepon</option><option value="email">Email</option><option value="in_person">Langsung</option><option value="business_documents">Dokumen bisnis</option><option value="other">Lainnya</option></select>

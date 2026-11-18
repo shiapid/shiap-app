@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Activity, BedDouble, Bike, Camera, CalendarCheck, Compass, Flame, Heart, Home, LayoutGrid, Leaf, LoaderCircle, MapPin, Menu, RotateCcw, Search, ShieldCheck, Ship, TicketCheck, Upload, UserRound, UsersRound, Waves, Zap, Bell } from "lucide-react";
+import { Activity, BedDouble, Bike, Building2, Camera, CalendarCheck, Compass, Flame, Heart, Home, LayoutGrid, Leaf, LoaderCircle, MapPin, Menu, RotateCcw, Search, ShieldCheck, Ship, TicketCheck, Upload, UserRound, UsersRound, Waves, Zap, Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { SITE_ICON_LABELS, SITE_ICON_SLOTS, type SiteIconKey } from "@/lib/site-icons";
 import { useSiteIcons } from "@/components/site/site-icon-provider";
@@ -15,6 +15,7 @@ const DEFAULT_ICONS = {
   profile: UserRound,
   trip: Ship,
   stay: BedDouble,
+  places: Building2,
   activities: Activity,
   rental: Bike,
   shinema: Camera,
