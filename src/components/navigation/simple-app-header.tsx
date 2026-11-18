@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, House, TicketCheck, UserRound } from "lucide-react";
+import { SiteIcon } from "@/components/site/site-icon-provider";
 
 const items = [
   { label: "Home", href: "/", icon: House },
@@ -51,7 +52,7 @@ export default function SimpleAppHeader() {
                     : "text-slate-500 hover:bg-slate-50 hover:text-[#0A2E63]"
                 }`}
               >
-                <Icon size={17} strokeWidth={active ? 2.3 : 1.8} />
+              <SiteIcon iconKey={item.href === "/" ? "home" : item.href === "/trip" ? "explore" : item.href === "/booking" ? "booking" : "profile"} fallback={Icon} size={17} strokeWidth={active ? 2.3 : 1.8} />
                 {item.label}
               </Link>
             );

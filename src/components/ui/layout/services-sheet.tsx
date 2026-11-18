@@ -4,13 +4,17 @@
 import Link from "next/link";
 import {
   X,
-  Camera,
-  Waves,
   Ship,
   Anchor,
   Compass,
   ArrowUpRight,
+  CalendarCheck,
+  BedDouble,
+  Camera,
+  Waves,
+  Bike,
 } from "lucide-react";
+import { SiteIcon } from "@/components/site/site-icon-provider";
 
 type ServicesSheetProps = {
   open: boolean;
@@ -19,36 +23,62 @@ type ServicesSheetProps = {
 
 const services = [
   {
-    title: "Shinema",
-    description: "Photo, cinematic & underwater",
-    href: "/shinema",
-    icon: Camera,
-  },
-  {
-    title: "Snorkeling",
-    description: "Explore the underwater world",
-    href: "/activities/snorkeling",
-    icon: Waves,
-  },
-  {
-    title: "Jetski",
-    description: "Enjoy the ocean adventure",
-    href: "/activities/jetski",
+    title: "Trip",
+    iconKey: "trip",
+    description: "Lihat paket dan jadwal perjalanan",
+    href: "/trip",
     icon: Ship,
   },
   {
-    title: "Paddleboard",
-    description: "Relax on the sea",
-    href: "/activities/paddleboard",
+    title: "Stay",
+    iconKey: "stay",
+    description: "Temukan properti dan tipe kamar",
+    href: "/stay",
+    icon: BedDouble,
+  },
+  {
+    title: "Explore SHIAP",
+    iconKey: "explore",
+    description: "Cari Trip dan Stay yang tersedia",
+    href: "/explore",
     icon: Compass,
   },
   {
-    title: "Kano & Kayak",
-    description: "Discover the coastline",
-    href: "/activities/kano",
+    title: "Booking Saya",
+    iconKey: "my_booking",
+    description: "Periksa status booking dan pembayaran",
+    href: "/my-booking",
+    icon: CalendarCheck,
+  },
+  {
+    title: "Profil",
+    iconKey: "profile",
+    description: "Kelola informasi akun",
+    href: "/profile",
     icon: Anchor,
   },
-];
+  {
+    title: "Wahana",
+    iconKey: "activities",
+    description: "Aktivitas laut yang tersedia",
+    href: "/activities",
+    icon: Waves,
+  },
+  {
+    title: "Rental",
+    iconKey: "rental",
+    description: "Sewa perlengkapan wisata",
+    href: "/rental",
+    icon: Bike,
+  },
+  {
+    title: "Shinema",
+    iconKey: "shinema",
+    description: "Paket dokumentasi perjalanan",
+    href: "/shinema",
+    icon: Camera,
+  },
+] as const;
 
 export default function ServicesSheet({
   open,
@@ -103,7 +133,7 @@ export default function ServicesSheet({
                 className="group flex items-center gap-4 rounded-2xl border border-slate-100 p-4 transition hover:border-blue-100 hover:bg-blue-50/50"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EAF2FF] text-[#1974FF]">
-                  <Icon size={22} strokeWidth={1.8} />
+                  <SiteIcon iconKey={service.iconKey} fallback={Icon} size={22} strokeWidth={1.8} />
                 </div>
 
                 <div className="min-w-0 flex-1">

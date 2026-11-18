@@ -23,9 +23,9 @@ export default function AuthForm({mode}:{mode:Mode}) {
     if(password.length<8) throw new Error("Password minimal 8 karakter.");
     const {data,error}=await supabase.auth.signUp({email:email.trim(),password,options:{data:{full_name:name.trim(),whatsapp:whatsapp.trim()},emailRedirectTo:`${window.location.origin}/auth/callback?next=/profile`}});
     if(error) throw error;
-    if(data.session){router.replace("/profile");router.refresh();} else setMessage("Pendaftaran berhasil. Periksa email untuk verifikasi sebelum login.");
+    if(data.session){router.replace("/profile");} else setMessage("Pendaftaran berhasil. Periksa email untuk verifikasi sebelum login.");
    } else if(mode==="login") {
-    const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password}); if(error) throw error; router.replace("/profile");router.refresh();
+    const {error}=await supabase.auth.signInWithPassword({email:email.trim(),password}); if(error) throw error; const next=new URLSearchParams(window.location.search).get("next"); router.replace(next && /^\/my-booking\/[0-9a-f-]{36}$/i.test(next)?next:"/profile");
    } else if(mode==="forgot") {
     const {error}=await supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:`${window.location.origin}/auth/callback?next=/reset-password`}); if(error) throw error; setMessage("Jika email terdaftar, tautan pemulihan akan dikirim. Periksa inbox dan spam.");
    } else {

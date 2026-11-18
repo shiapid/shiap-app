@@ -4,6 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, UserRound } from "lucide-react";
+import { SiteIcon } from "@/components/site/site-icon-provider";
 
 type AppHeaderProps = {
   onMenuClick: () => void;
@@ -58,7 +59,7 @@ export default function AppHeader({ onMenuClick }: AppHeaderProps) {
             aria-label="Profil"
             className="hidden h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-[#0A2E63] transition hover:border-[#1974FF] hover:bg-blue-50 sm:flex"
           >
-            <UserRound size={19} strokeWidth={1.8} />
+            <SiteIcon iconKey="profile" fallback={UserRound} size={19} strokeWidth={1.8} />
           </Link>
 
           <button
@@ -67,7 +68,7 @@ export default function AppHeader({ onMenuClick }: AppHeaderProps) {
             aria-label="Buka menu layanan"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5F7FA] text-[#0A2E63] transition hover:bg-blue-50 md:hidden"
           >
-            <Menu size={21} strokeWidth={1.9} />
+            <SiteIcon iconKey="menu" fallback={Menu} size={21} strokeWidth={1.9} />
           </button>
         </div>
       </div>

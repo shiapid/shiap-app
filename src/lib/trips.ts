@@ -21,12 +21,19 @@ export type Trip = {
   modes: TripMode[];
   openTripInfo: string;
   privateTripInfo: string;
-  itinerary: { time: string; title: string; description: string }[];
+  itinerary: { day?: string; dayTitle?: string; time: string; title: string; description: string }[];
   included: string[];
   excluded: string[];
   meetingPoint: string;
   preparation: string[];
   notes: string[];
+  youtubeTourUrl?: string | null;
+  pricingModel?: string | null;
+  minimumPackagePrice?: number | null;
+  priceTiers?: { min_pax: number; max_pax: number; price_per_person: number }[];
+  minPax?: number;
+  maxPax?: number;
+  departures?: { id: string; departureDate: string; endDate?: string | null; pricePerPerson: number | null; minParticipants: number; maxParticipants: number; bookedSeats: number; status: string }[];
 };
 
 export const trips: Trip[] = [

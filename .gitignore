@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Local staging validation receipt used by the explicit production promotion gate.
+/deployment/staging/last-validated.json
+
 .env*
 
 # Environment variables

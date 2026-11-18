@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustrasi DEMO Stay SHIAP</title>
+  <desc id="desc">Placeholder ilustrasi homestay tepi laut untuk katalog demo SHIAP.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#91DDF1"/><stop offset="1" stop-color="#E5F7FA"/></linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#21B7CF"/><stop offset="1" stop-color="#1265A3"/></linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1200v390H0z"/><path fill="url(#water)" d="M0 365q170-42 340 0t340 0 340 0 180 0v355H0z"/>
+  <path fill="#0B7B59" d="m675 375 130-170 125 170z"/><path fill="#0A684E" d="m812 375 170-230 164 230z"/>
+  <path fill="#F7FAFC" d="M165 310 390 165l225 145v265H165z"/><path fill="#0A2E63" d="M145 320 390 135l245 185-20 28-225-170-225 170z"/>
+  <path fill="#1974FF" d="M355 345h75v115h-75zM468 345h90v230h-90z"/><path fill="#FF8518" d="M182 482h70v93h-70z"/>
+  <rect x="64" y="52" width="240" height="55" rx="27" fill="#fff" fill-opacity=".94"/><text x="184" y="88" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#0A2E63">DEMO STAY</text>
+  <text x="64" y="650" font-family="Arial,sans-serif" font-size="28" font-weight="600" fill="#fff">Placeholder katalog SHIAP — ganti dari Admin</text>
+</svg>

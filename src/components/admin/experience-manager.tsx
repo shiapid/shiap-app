@@ -1,0 +1,106 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
+import { Archive, ImagePlus, LoaderCircle, Pencil, Plus, Save, Search, X } from "lucide-react";
+import { RENTAL_CATEGORIES, type RentalCategory } from "@/lib/rental-categories";
+
+export type ExperienceType = "activity" | "documentation";
+type ExperienceAddon = { id: string; name: string; price: number };
+type CatalogCategory = "activity" | "rental" | "documentation";
+type Experience = { id: string; experience_type: ExperienceType; catalog_category: CatalogCategory; rental_category: RentalCategory | null; title: string; slug: string; short_description: string | null; description: string | null; duration: string | null; location: string; base_price: number; price_basis: "per_person" | "per_unit"; price_unit_label: string; min_quantity: number; max_quantity: number; daily_capacity: number | null; bundle_requires: "none" | "trip_or_activity" | "snorkeling"; addons: ExperienceAddon[]; highlights: string[]; inclusions: string[]; cover_image_url: string | null; featured: boolean; status: "draft" | "published" | "archived" };
+type Form = Omit<Experience, "id" | "highlights" | "inclusions" | "base_price" | "min_quantity" | "max_quantity" | "daily_capacity"> & { id?: string; base_price: string; min_quantity: string; max_quantity: string; daily_capacity: string; highlights: string; inclusions: string };
+
+const blank = (type: ExperienceType, catalogCategory: CatalogCategory): Form => ({ experience_type: type, catalog_category: catalogCategory, rental_category: catalogCategory === "rental" ? RENTAL_CATEGORIES[0].key : null, title: "", slug: "", short_description: "", description: "", duration: "", location: "Kotabaru, Kalimantan Selatan", base_price: "", price_basis: "per_unit", price_unit_label: "paket", min_quantity: "1", max_quantity: "20", daily_capacity: "", bundle_requires: "none", addons: [], highlights: "", inclusions: "", cover_image_url: "", featured: false, status: "draft" });
+const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
+const lines = (value: string) => value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+const slugify = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+export default function ExperienceManager({ type, catalogCategory: requestedCategory }: { type: ExperienceType; catalogCategory?: "activity" | "rental" }) {
+  const catalogCategory: CatalogCategory = type === "documentation" ? "documentation" : requestedCategory ?? "activity";
+  const supabase = useMemo(() => createClient(), []);
+  const [items, setItems] = useState<Experience[]>([]);
+  const [form, setForm] = useState<Form>(() => blank(type, catalogCategory));
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const title = catalogCategory === "rental" ? "Rental" : type === "activity" ? "Wahana & Aktivitas" : "Dokumentasi Shinema";
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error: queryError } = await supabase.from("shiap_experiences").select("*").eq("experience_type", type).eq("catalog_category", catalogCategory).order("updated_at", { ascending: false });
+    if (queryError) setError(queryError.message);
+    else { setError(""); setItems((data ?? []) as Experience[]); }
+    setLoading(false);
+  }, [catalogCategory, supabase, type]);
+  useEffect(() => {
+    // The list state is synchronized after the Supabase query resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  const locations = [...new Set(items.map((item) => item.location))].sort((left, right) => left.localeCompare(right, "id"));
+  const visibleItems = items.filter((item) => `${item.title} ${item.location}`.toLowerCase().includes(search.toLowerCase()) && (locationFilter === "all" || item.location === locationFilter));
+  function update<K extends keyof Form>(key: K, value: Form[K]) {
+    setForm((current) => ({ ...current, [key]: value, ...(key === "title" && !current.id ? { slug: slugify(String(value)) } : {}) }));
+  }
+  function edit(item: Experience) {
+    setForm({ ...item, base_price: String(item.base_price), min_quantity: String(item.min_quantity), max_quantity: String(item.max_quantity), daily_capacity: item.daily_capacity == null ? "" : String(item.daily_capacity), addons: item.addons ?? [], highlights: item.highlights.join("\n"), inclusions: item.inclusions.join("\n") });
+    setShowForm(true); setError(""); setNotice("");
+  }
+  async function upload(file?: File) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) { setError("Pilih foto JPG, PNG, atau WebP maksimal 10 MB."); return; }
+    setUploading(true); setError("");
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setError("Sesi admin tidak ditemukan."); setUploading(false); return; }
+    const path = `experiences/${auth.user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+    const { error: uploadError } = await supabase.storage.from("shiap-catalog-images").upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) setError(uploadError.message);
+    else { update("cover_image_url", supabase.storage.from("shiap-catalog-images").getPublicUrl(path).data.publicUrl); setNotice("Foto katalog berhasil diunggah."); }
+    setUploading(false);
+  }
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(""); setNotice("");
+    const price = Number(form.base_price); const min = Number(form.min_quantity); const max = Number(form.max_quantity);
+    if (!form.title.trim() || !form.slug.trim() || !Number.isFinite(price) || price <= 0 || !Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max < min) { setError("Lengkapi nama, harga di atas nol, dan rentang jumlah yang valid."); setBusy(false); return; }
+    const { data: auth } = await supabase.auth.getUser();
+    const dailyCapacity = form.daily_capacity.trim() ? Number(form.daily_capacity) : null;
+    if (dailyCapacity !== null && (!Number.isInteger(dailyCapacity) || dailyCapacity < 1)) { setError("Kapasitas harian harus berupa angka positif atau dikosongkan."); setBusy(false); return; }
+    const addons = form.addons.map((addon) => ({ ...addon, id: slugify(addon.name), name: addon.name.trim(), price: Number(addon.price) }));
+    if (addons.some((addon) => !addon.id || !addon.name || !Number.isFinite(addon.price) || addon.price <= 0) || new Set(addons.map((addon) => addon.id)).size !== addons.length) { setError("Pastikan setiap add-on memiliki nama unik dan harga di atas nol."); setBusy(false); return; }
+    if (catalogCategory === "rental" && !form.rental_category) { setError("Pilih kategori Rental sebelum menyimpan layanan."); setBusy(false); return; }
+    const record = { experience_type: type, catalog_category: catalogCategory, rental_category: catalogCategory === "rental" ? form.rental_category : null, title: form.title.trim(), slug: form.slug.trim(), short_description: form.short_description?.trim() || null, description: form.description?.trim() || null, duration: form.duration?.trim() || null, location: form.location.trim(), base_price: price, price_basis: form.price_basis, price_unit_label: form.price_unit_label.trim() || "paket", min_quantity: min, max_quantity: max, daily_capacity: dailyCapacity, bundle_requires: form.bundle_requires, addons, highlights: lines(form.highlights), inclusions: lines(form.inclusions), cover_image_url: form.cover_image_url?.trim() || null, featured: form.featured, status: form.status, ...(auth.user && !form.id ? { created_by: auth.user.id } : {}) };
+    const query = form.id ? supabase.from("shiap_experiences").update(record).eq("id", form.id) : supabase.from("shiap_experiences").insert(record);
+    const { error: saveError } = await query;
+    if (saveError) setError(saveError.message);
+    else { setNotice(form.status === "published" ? "Layanan disimpan dan tersedia di website." : "Layanan berhasil disimpan."); setShowForm(false); await load(); }
+    setBusy(false);
+  }
+  async function archive(item: Experience) {
+    if (!window.confirm(`Arsipkan “${item.title}”? Layanan tidak lagi tampil di website dan tidak dapat dipesan.`)) return;
+    const { error: updateError } = await supabase.from("shiap_experiences").update({ status: "archived" }).eq("id", item.id);
+    if (updateError) setError(updateError.message); else { setNotice("Layanan diarsipkan."); await load(); }
+  }
+
+  return <div><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-bold tracking-[0.2em] text-[#1974FF]">KATALOG PENGALAMAN</p><h1 className="mt-2 text-2xl font-extrabold text-[#0A2E63]">{title}</h1><p className="mt-1 text-sm text-slate-500">{catalogCategory === "rental" ? "Kelola produk rental, lokasi, tarif, kapasitas harian, add-on, dan publikasi." : "Kelola detail, tarif, publikasi, dan tampilan layanan."}</p></div><button onClick={() => { setForm(blank(type, catalogCategory)); setShowForm(true); setError(""); setNotice(""); }} className="inline-flex items-center gap-2 rounded-xl bg-[#1974FF] px-4 py-3 text-xs font-bold text-white"><Plus size={16}/>Tambah layanan</button></div>
+    {notice && <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-xs text-green-800">{notice}</p>}{error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+    <div className="mt-5 flex flex-wrap gap-3"><label className="flex min-w-64 max-w-lg flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4"><Search size={16} className="text-slate-400"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama atau lokasi" className="h-11 flex-1 text-sm outline-none"/></label><select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label="Filter lokasi wisata" className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#0A2E63]"><option value="all">Semua lokasi</option>{locations.map((location) => <option key={location} value={location}>{location}</option>)}</select></div>
+    {loading ? <p className="mt-8 flex items-center justify-center gap-2 text-sm text-slate-500"><LoaderCircle className="animate-spin" size={18}/>Memuat katalog...</p> : visibleItems.length ? <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visibleItems.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="relative h-40 bg-slate-100">{item.cover_image_url && <Image src={item.cover_image_url} alt={item.title} fill sizes="(max-width:640px) 100vw, 33vw" unoptimized className="object-cover"/>}<span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold ${item.status === "published" ? "bg-green-100 text-green-800" : item.status === "archived" ? "bg-slate-200 text-slate-700" : "bg-orange-100 text-orange-800"}`}>{item.status === "published" ? "Tayang" : item.status === "archived" ? "Arsip" : "Draft"}</span></div><div className="p-4"><h2 className="font-bold text-[#0A2E63]">{item.title}</h2><p className="mt-1 text-xs text-slate-500">{item.location} · {item.duration || item.price_unit_label}</p><p className="mt-3 text-sm font-extrabold text-[#1974FF]">{money(item.base_price)} <span className="text-[10px] font-medium text-slate-400">/ {item.price_basis === "per_person" ? "orang" : item.price_unit_label}</span></p>{item.addons.length > 0 && <p className="mt-1 text-[10px] text-slate-500">{item.addons.length} add-on tersedia</p>}<div className="mt-4 flex gap-2"><button onClick={() => edit(item)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#0A2E63]"><Pencil size={14}/>Edit</button>{item.status !== "archived" && <button onClick={() => void archive(item)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-orange-200 px-3 py-2 text-xs font-bold text-orange-800"><Archive size={14}/>Arsipkan</button>}</div></div></article>)}</div> : <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">Belum ada layanan. Tambahkan katalog baru untuk mulai menjual pengalaman ini.</div>}
+    {showForm && <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/50 p-3 sm:p-8"><form onSubmit={(event) => void save(event)} className="mx-auto max-w-3xl rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-widest text-[#1974FF]">{form.id ? "Ubah katalog" : "Layanan baru"}</p><h2 className="mt-1 font-bold text-[#0A2E63]">{title}</h2></div><button type="button" onClick={() => setShowForm(false)} aria-label="Tutup formulir" className="rounded-lg p-2 hover:bg-slate-100"><X size={18}/></button></div>
+      <div className="grid gap-4 p-5 sm:grid-cols-2"><Field label="Nama layanan *"><input required value={form.title} onChange={(event) => update("title", event.target.value)} className={input}/></Field><Field label="Slug *"><input required value={form.slug} onChange={(event) => update("slug", event.target.value)} className={input}/></Field><Field label="Lokasi"><input value={form.location} onChange={(event) => update("location", event.target.value)} className={input}/></Field>{catalogCategory === "rental" && <Field label="Kategori Rental *"><select required value={form.rental_category ?? ""} onChange={(event) => update("rental_category", event.target.value as RentalCategory)} className={input}><option value="">Pilih kategori</option>{RENTAL_CATEGORIES.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}</select></Field>}<Field label="Durasi / sesi"><input value={form.duration ?? ""} onChange={(event) => update("duration", event.target.value)} placeholder="Contoh: 30 menit" className={input}/></Field><Field label="Harga *"><input required type="number" min="1" step="1000" value={form.base_price} onChange={(event) => update("base_price", event.target.value)} className={input}/></Field><Field label="Harga dihitung per"><select value={form.price_basis} onChange={(event) => update("price_basis", event.target.value as Form["price_basis"])} className={input}><option value="per_unit">Unit / paket</option><option value="per_person">Orang</option></select></Field><Field label="Label unit"><input value={form.price_unit_label} onChange={(event) => update("price_unit_label", event.target.value)} placeholder="paket, sesi, unit" className={input}/></Field><div className="grid grid-cols-2 gap-3"><Field label="Jumlah min."><input type="number" min="1" value={form.min_quantity} onChange={(event) => update("min_quantity", event.target.value)} className={input}/></Field><Field label="Jumlah maks."><input type="number" min="1" value={form.max_quantity} onChange={(event) => update("max_quantity", event.target.value)} className={input}/></Field></div><Field label={`Kapasitas per tanggal (${form.price_basis === "per_person" ? "orang" : form.price_unit_label || "unit"})`}><input type="number" min="1" value={form.daily_capacity} onChange={(event) => update("daily_capacity", event.target.value)} placeholder="Kosongkan jika tidak dibatasi" className={input}/></Field><Field label="Aturan paket dokumentasi"><select value={form.bundle_requires} onChange={(event) => update("bundle_requires", event.target.value as Form["bundle_requires"])} className={input}><option value="none">Bisa dipesan mandiri</option><option value="trip_or_activity">Wajib bersama Trip atau Wahana</option><option value="snorkeling">Wajib bersama snorkeling di lokasi yang sama</option></select></Field><Field label="Ringkasan" wide><input value={form.short_description ?? ""} onChange={(event) => update("short_description", event.target.value)} className={input}/></Field><Field label="Deskripsi" wide><textarea rows={3} value={form.description ?? ""} onChange={(event) => update("description", event.target.value)} className={input}/></Field><Field label="Keunggulan (satu per baris)"><textarea rows={4} value={form.highlights} onChange={(event) => update("highlights", event.target.value)} className={input}/></Field><Field label="Termasuk (satu per baris)"><textarea rows={4} value={form.inclusions} onChange={(event) => update("inclusions", event.target.value)} className={input}/></Field>
+        <div className="sm:col-span-2 rounded-xl border border-slate-200 p-4"><div className="flex items-center justify-between"><div><p className="text-xs font-bold text-[#0A2E63]">Add-on layanan</p><p className="mt-1 text-[10px] text-slate-500">Harga add-on memakai basis yang sama dengan harga utama.</p></div><button type="button" onClick={() => setForm((current) => ({ ...current, addons: [...current.addons, { id: "", name: "", price: 0 }] }))} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-[#1974FF]">Tambah add-on</button></div>{form.addons.length > 0 && <div className="mt-3 space-y-2">{form.addons.map((addon, index) => <div key={`${addon.id}-${index}`} className="grid gap-2 sm:grid-cols-[1fr_180px_auto]"><input aria-label="Nama add-on" value={addon.name} onChange={(event) => setForm((current) => ({ ...current, addons: current.addons.map((value, i) => i === index ? { ...value, name: event.target.value } : value) }))} placeholder="Contoh: Dokumentasi mirrorless" className={input}/><input aria-label="Harga add-on" type="number" min="1" step="1000" value={addon.price || ""} onChange={(event) => setForm((current) => ({ ...current, addons: current.addons.map((value, i) => i === index ? { ...value, price: Number(event.target.value) } : value) }))} placeholder="Harga" className={input}/><button type="button" aria-label="Hapus add-on" onClick={() => setForm((current) => ({ ...current, addons: current.addons.filter((_, i) => i !== index) }))} className="mt-1 rounded-lg px-3 text-xs font-bold text-red-600 hover:bg-red-50">Hapus</button></div>)}</div>}</div>
+        <Field label="Foto sampul" wide><div className="flex flex-wrap items-center gap-3"><input value={form.cover_image_url ?? ""} onChange={(event) => update("cover_image_url", event.target.value)} placeholder="URL foto atau unggah file" className={`${input} min-w-0 flex-1`}/><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-xs font-bold text-[#0A2E63]">{uploading ? <LoaderCircle className="animate-spin" size={15}/> : <ImagePlus size={15}/>}Unggah<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={(event) => { void upload(event.target.files?.[0]); event.currentTarget.value = ""; }}/></label></div></Field>
+        <Field label="Status"><select value={form.status} onChange={(event) => update("status", event.target.value as Form["status"])} className={input}><option value="draft">Draft</option><option value="published">Tayang di website</option><option value="archived">Arsip</option></select></Field><label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold text-slate-600"><input type="checkbox" checked={form.featured} onChange={(event) => update("featured", event.target.checked)}/>Tampilkan sebagai unggulan</label></div>
+      <div className="flex justify-end gap-2 border-t border-slate-100 p-4"><button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600">Batal</button><button disabled={busy || uploading} className="inline-flex items-center gap-2 rounded-xl bg-[#1974FF] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50">{busy ? <LoaderCircle className="animate-spin" size={15}/> : <Save size={15}/>}Simpan layanan</button></div></form></div>}
+  </div>;
+}
+
+const input = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1974FF]";
+function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) { return <label className={`block text-xs font-semibold text-slate-600 ${wide ? "sm:col-span-2" : ""}`}>{label}{children}</label>; }

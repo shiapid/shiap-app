@@ -9,6 +9,7 @@ import {
   BedDouble,
   LayoutGrid,
 } from "lucide-react";
+import { SiteIcon } from "@/components/site/site-icon-provider";
 
 type BottomNavigationProps = {
   onServicesClick: () => void;
@@ -57,10 +58,7 @@ export default function BottomNavigation({
                 active ? "text-[#1974FF]" : "text-slate-400"
               }`}
             >
-              <Icon
-                size={21}
-                strokeWidth={active ? 2.3 : 1.8}
-              />
+              <SiteIcon iconKey={item.href === "/" ? "home" : item.href === "/trip" ? "trip" : "stay"} fallback={Icon} size={21} strokeWidth={active ? 2.3 : 1.8} />
               <span className="text-[10px] font-semibold">
                 {item.label}
               </span>
@@ -73,7 +71,7 @@ export default function BottomNavigation({
           onClick={onServicesClick}
           className="flex flex-col items-center justify-center gap-1 text-slate-400 transition hover:text-[#1974FF]"
         >
-          <LayoutGrid size={21} strokeWidth={1.8} />
+          <SiteIcon iconKey="services" fallback={LayoutGrid} size={21} strokeWidth={1.8} />
           <span className="text-[10px] font-semibold">Layanan</span>
         </button>
       </div>

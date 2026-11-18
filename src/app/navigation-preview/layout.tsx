@@ -1,7 +1,3 @@
-import SimpleAppShell from "@/components/navigation/simple-app-shell";
-
-export default function NavigationPreviewLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return <SimpleAppShell>{children}</SimpleAppShell>;
+export default function NavigationPreviewLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

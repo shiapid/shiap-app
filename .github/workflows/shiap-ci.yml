@@ -1,0 +1,53 @@
+name: SHIAP CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      SUPABASE_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.2
+          cache: npm
+      - run: npm ci
+      - name: Start isolated Supabase stack
+        run: npx supabase start -x studio,edge-runtime,logflare,vector
+      - name: Reset ephemeral CI database and run SQL tests
+        run: |
+          npx supabase db reset
+          npx supabase test db
+      - name: Export local-only build configuration
+        shell: bash
+        run: |
+          eval "$(npx supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "NEXT_PUBLIC_SHIAP_DEMO_MODE=true"
+            echo "NEXT_PUBLIC_SHIAP_ENVIRONMENT=ci"
+          } >> "$GITHUB_ENV"
+      - name: ESLint
+        run: npm run lint
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: npx supabase stop --no-backup

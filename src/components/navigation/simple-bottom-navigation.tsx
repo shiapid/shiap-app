@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, House, TicketCheck, UserRound } from "lucide-react";
+import { SiteIcon } from "@/components/site/site-icon-provider";
 
 const items = [
   { label: "Home", href: "/", icon: House },
@@ -39,7 +40,7 @@ export default function SimpleBottomNavigation() {
                 active ? "text-[#1974FF]" : "text-slate-400"
               }`}
             >
-              <Icon size={21} strokeWidth={active ? 2.35 : 1.8} />
+              <SiteIcon iconKey={item.href === "/" ? "home" : item.href === "/trip" ? "explore" : item.href === "/booking" ? "booking" : "profile"} fallback={Icon} size={21} strokeWidth={active ? 2.35 : 1.8} />
               <span className="text-[10px] font-semibold">{item.label}</span>
             </Link>
           );

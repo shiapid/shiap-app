@@ -1,16 +1,26 @@
 import { notFound } from "next/navigation";
-import { trips } from "@/lib/trips";
+import { createClient } from "@/lib/supabase/server";
+import { mapTripPackage, type TripPackageRow } from "@/lib/catalog-mappers";
 import TripDetailClient from "@/components/trips/trip-detail-client";
 
-type TripDetailPageProps = {
-  params: Promise<{ slug: string }>;
-};
+type Props = { params: Promise<{ slug: string }> };
+export const dynamic = "force-dynamic";
 
-export default async function TripDetailPage({ params }: TripDetailPageProps) {
+export default async function TripDetailPage({ params }: Props) {
   const { slug } = await params;
-  const trip = trips.find((item) => item.slug === slug);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("trip_packages")
+    .select("*,trip_departures(*)")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
 
-  if (!trip) notFound();
+  if (error) {
+    console.error("[SHIAP] Gagal memuat detail Trip:", error.message);
+    throw new Error("Detail Trip tidak dapat dimuat. Silakan coba kembali.");
+  }
+  if (!data) notFound();
 
-  return <TripDetailClient trip={trip} />;
+  return <TripDetailClient trip={mapTripPackage(data as TripPackageRow)} />;
 }
