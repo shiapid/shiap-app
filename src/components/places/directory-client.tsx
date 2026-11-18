@@ -9,6 +9,15 @@ function PropertyCard({ item }: { item: DirectoryListing }) {
   const refCode = item.ref_code;
   const whatsAppUrl = buildWhatsAppUrl({ phone: item.whatsapp_phone, propertyName: item.name, refCode });
   const price = formatIdr(item.starting_price_idr);
+  const hasProfile = Boolean(item.description || item.cover_image_url || item.gallery_urls?.length || item.capacity || price || item.facilities?.length || item.room_summaries?.length || item.policies || item.map_url || item.stay_slug);
+  if (!hasProfile) return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(10,46,99,.045)]">
+    <div className="p-4">
+      <p className="flex items-center gap-1.5 text-xs text-slate-500"><MapPin size={14} className="shrink-0 text-[#1265D8]"/>{item.destination_name}{item.city ? ` · ${item.city}` : ""}</p>
+      <h2 className="mt-2 break-words text-base font-extrabold text-[#0A2E63]">{item.name}</h2>
+      <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1265D8]"><BadgeCheck size={14}/>Kontak terverifikasi</p>
+    </div>
+    {whatsAppUrl ? <div className="border-t border-slate-100 px-4 py-3"><PlacesWhatsAppLink href={whatsAppUrl} propertyId={item.id} refCode={refCode} className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700"/></div> : null}
+  </article>;
   return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(10,46,99,.045)]">
     <Link href={`/places/${encodeURIComponent(item.slug)}`} className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1265D8]">
       {item.cover_image_url ? <div className="relative aspect-[4/3] bg-[#E9EFF6]">
