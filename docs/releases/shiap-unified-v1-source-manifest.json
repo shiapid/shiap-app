@@ -1,0 +1,1262 @@
+{
+  "product": "SHIAP Unified V1 release candidate",
+  "generatedAt": "2026-11-18T19:21:49.741Z",
+  "sourceStatus": "Reconstructed production-compatible baseline; not the original production TypeScript commit.",
+  "baseCommit": "c8fb3dcc0a47e107cb8ac20637b9c582cb8ec141",
+  "featureCommits": [
+    "279fb61328211c9a8e52c7501789149c12a295d3",
+    "7bc7c1e9c4178f7219e482ea218943bf7ce3e199",
+    "dd9abedff5eb82386a0343e2ada4261fdb99cdf5"
+  ],
+  "modules": [
+    "Admin Operations V1",
+    "E-Ticket & Digital Voucher V1",
+    "SHIAP Places V1"
+  ],
+  "migrations": [
+    "20261118070000_admin_operations_upgrade_v1.sql",
+    "20261118070001_admin_operations_schedule_write_lockdown.sql",
+    "20261118085558_shiap_eticket_v1.sql",
+    "20261119100000_places_directory_v1.sql"
+  ],
+  "historicalETicketBackfill": "Not included; migration creates tickets only on future verified paid transitions.",
+  "fileCount": 309,
+  "files": [
+    {
+      "path": ".github/workflows/shiap-ci.yml",
+      "sha256": "88c7a9c1fd349cfa29382e1e7545b3293585ee56857975895899041fdad40cfe"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "bbc83081e88e9b1663dc3daee7ca6ac0f37d195d83f31227c8a02d752da7bcad"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "d273860cb120cdc0c127d565b196d6846274ad3933d5848932659c2a0b193898"
+    },
+    {
+      "path": "README-SUPABASE-LOCAL.md",
+      "sha256": "c42136b5e435f42606725cde7ad3f52f06b57b0303bdfc010a8bc9f45ea415ef"
+    },
+    {
+      "path": "RELEASE-ADMIN-OPERATIONS-V1.md",
+      "sha256": "8602480f37d0705b81dd677523d667217da6d6fcaef7153bf5038425f6cb1784"
+    },
+    {
+      "path": "components.json",
+      "sha256": "55f98c0800df5dbb7a1215f94711437651394ccacdd809dc4f71c3efe926dfc9"
+    },
+    {
+      "path": "deployment/cpanel/INSTALLATION-ID.md",
+      "sha256": "6637089f82ea9f4e90996334966ffef8e555e3c73fefeb440958c5c9f963dcbe"
+    },
+    {
+      "path": "deployment/cpanel/SHIAP-ADMIN-BOOTSTRAP.sql",
+      "sha256": "3c23efb9e8082cc4baa11d9ba516b005dc327c457614b8fece8d3a9bf62364ab"
+    },
+    {
+      "path": "deployment/cpanel/SHIAP-APP-CUTOVER.md",
+      "sha256": "e8ffc9a861eef09dd9500656942bdf16dd86b97beefb576e47eb59674e1deadd"
+    },
+    {
+      "path": "deployment/cpanel/SHIAP-APP-DEMO-CATALOG-SEED.sql",
+      "sha256": "1faa0c88a070273a38b37a9705c3cb0cdd2cc7788bf52e29565b7990fa5c9db3"
+    },
+    {
+      "path": "deployment/staging/README.md",
+      "sha256": "99d93dce7474c2deba394b455eefee4d6523591a731162128cdcd5e81622c095"
+    },
+    {
+      "path": "docs/BOOKING-PAYMENT-V2.md",
+      "sha256": "1befd2a63f313ea2eade637fb51b521c7d1f2ed98a64d34096be293790cb4e30"
+    },
+    {
+      "path": "docs/ETICKET-V1.md",
+      "sha256": "86ac7d4b61c47af1f4bdc8e11fca647175f9d03e8e89c64de41308d72306b989"
+    },
+    {
+      "path": "docs/NOTIFICATION-CENTER-V1.md",
+      "sha256": "3e0ae91de07da9923109faa28aed914743ae6e29077aeab9efbd0d7a5f7117a2"
+    },
+    {
+      "path": "docs/SERVICE-FEE-V1.md",
+      "sha256": "41cab4aff6b8433c6907afdd16684188be46aec8409a597819fc83dcf440398f"
+    },
+    {
+      "path": "docs/places/DATABASE.md",
+      "sha256": "cde9283c8fc15c9721c33739de832f20ef076243a81c8edc75c1b8a0ea6f0bdf"
+    },
+    {
+      "path": "docs/places/PRODUCT_SPEC.md",
+      "sha256": "15b84aefd859647089b31d9f10f7eab41145014f09e5ea50c4d18a5a63e69066"
+    },
+    {
+      "path": "docs/places/README.md",
+      "sha256": "b49edde7f0329225f4fad273c5d209e71d12f8ee7af327918bc78257ea238f2d"
+    },
+    {
+      "path": "docs/places/RELEASE_CHECKLIST.md",
+      "sha256": "f5ee8bd2c7a83a28af5badf5a6b97636c3316bac82aeca3e643c3bbc780ea09c"
+    },
+    {
+      "path": "docs/places/SECURITY.md",
+      "sha256": "bd2bd56e82f8d5a5f187de8f10e8b8e99b63b74e75cf98009443f4804794a51c"
+    },
+    {
+      "path": "docs/places/TEST_REPORT.md",
+      "sha256": "632901150807b5a2935ed707d0f7f1d9a5fae3af003627489ee6dd063dcf135a"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "275a07c13fc7c83a652efcfa9fb6a207c451a2f5088e6793415ce44281285720"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "6acc73e450e3d35c165bbab0560abe93c401e4091e84372f7d4e3d9d452c0354"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "7495c60d0eb416a43979e3db7d1fb53fc2d254928ae2945318faf0da9aee0599"
+    },
+    {
+      "path": "package.json",
+      "sha256": "dbe54c7ff2ef7bc9227b50858502cb33edc32240c0726f55c0814f8b28d1738e"
+    },
+    {
+      "path": "postcss.config.mjs",
+      "sha256": "7b299d3d3b16699ddda397c0b2373b3af4f25f8fc9ccc9b3d9e64ef083bc1c21"
+    },
+    {
+      "path": "proxy.ts",
+      "sha256": "ec177084bae496e6d8d1fd53d6a8ec27316c04b75cdfa1bc65ca0460ae0d81af"
+    },
+    {
+      "path": "public/demo/shiap-demo-experience.svg",
+      "sha256": "ef93cf1eec97e451027ab6e88c312477c1aff9c37c8d01da2377fed918dd3b0f"
+    },
+    {
+      "path": "public/demo/shiap-demo-stay.svg",
+      "sha256": "9bffa35289b2c38397cdb73e61d06498bdec782a8b82bf966d131a66972160aa"
+    },
+    {
+      "path": "public/demo/shiap-demo-trip.svg",
+      "sha256": "8da6dc8bbd33d1b358eac672627d327cc2ee409aec03e77f9018d90fd173a0ba"
+    },
+    {
+      "path": "public/file.svg",
+      "sha256": "2b67812c325c199a02536cdbeea0c593a72f707d323b72ee3e08dbab06753bd4"
+    },
+    {
+      "path": "public/fonts/Geist-Regular.ttf",
+      "sha256": "bde046ddd9f20be35b0bd56cc79eb752b967fb6661a3fe76cb067bb09f871d76"
+    },
+    {
+      "path": "public/globe.svg",
+      "sha256": "b614b9bf183925957661ac851498fe1d8029fd43a62fbfed86f9e2624a57e7cf"
+    },
+    {
+      "path": "public/logo/shiap-logo.png",
+      "sha256": "e0b31a0a4b0eabaa1f787b7d084d82b639d1ae4faaa863b626f9026ab2d8152c"
+    },
+    {
+      "path": "public/next.svg",
+      "sha256": "55995dfad6ecb4945a1e856ddca03c5e16aa5bf13fd21b4df6a74ae79357bcfc"
+    },
+    {
+      "path": "public/vercel.svg",
+      "sha256": "f081337b2fee635b455b63275406a3e7f39d6a014e25ad90dab5a67e62a12ac4"
+    },
+    {
+      "path": "public/window.svg",
+      "sha256": "644768c4aaeb4767bce293344eeb0c125fb804a94d801440424072202d85e3a1"
+    },
+    {
+      "path": "release-artifacts/admin-operations-phase2/20261118070001_admin_operations_schedule_write_lockdown.sql",
+      "sha256": "4a0c72a9f971d599e9402de7e171f522c6a2c15f7374c80666d4ad39f21ae748"
+    },
+    {
+      "path": "scripts/admin-operations.test.mjs",
+      "sha256": "e656f5146a158efd5b75b1246dbedab8061924c3ddadae60ffdca83b63e1b46c"
+    },
+    {
+      "path": "scripts/assemble-cpanel-release.mjs",
+      "sha256": "a22e6c5e9b94323d3670280a060daf3057a511d73f398c30f258e6e0cf14c7d7"
+    },
+    {
+      "path": "scripts/assemble-cpanel-release.test.mjs",
+      "sha256": "8083888999db5787023a27c3b58004eb09cdbc583653f274da4eba62639e51a0"
+    },
+    {
+      "path": "scripts/assert-cloud-supabase.mjs",
+      "sha256": "0cb5d5ab6425ebb0b0d6af72ecc2170c81f658dc70acf6589b4995c79afbfba6"
+    },
+    {
+      "path": "scripts/assert-local-supabase.mjs",
+      "sha256": "2c7b444903bf830b0b9f946d3b88a5fe9b9a9534265e88508a377d4b40b9a1da"
+    },
+    {
+      "path": "scripts/booking-category.test.mjs",
+      "sha256": "f1b5ee3c653d12c16ce62aecfb8466b2dd94dd3a3f30f479ff53054f117dbb28"
+    },
+    {
+      "path": "scripts/booking-payment-browser.mjs",
+      "sha256": "2ebf2672e3b7f716272ca5b5160018ebf39579fefa2c865081902cdf86bccc35"
+    },
+    {
+      "path": "scripts/booking-status.test.mjs",
+      "sha256": "a483796cc162343d3481bd553013854b82d11484cc31b6e7bcfdfa8fb5b35b25"
+    },
+    {
+      "path": "scripts/build-cpanel-release.mjs",
+      "sha256": "8b746d6f604d18957ab1456ec565b76be0baf347fdc90640797f89834f8760ec"
+    },
+    {
+      "path": "scripts/check-booking-production.mjs",
+      "sha256": "cfc0ad36625de05237132fb8cc4347b2021c3152fc0594896861c88c7efe183e"
+    },
+    {
+      "path": "scripts/check-booking-production.test.mjs",
+      "sha256": "b25171d832aa4a66fb19c49f3f5843142bf8854bf9b6bb2f21feb9fa18c242fb"
+    },
+    {
+      "path": "scripts/check-smtp-configuration.mjs",
+      "sha256": "a8c6a010958e5ae7f755ec1068f59f862770509474f71bcb9b973e0d9579e121"
+    },
+    {
+      "path": "scripts/deploy-cpanel-production.ps1",
+      "sha256": "40ea27711ce89a0d7033232ef1ef27da7e2441c14dab906598805e937d57fc6b"
+    },
+    {
+      "path": "scripts/deploy-cpanel-staging.ps1",
+      "sha256": "807e78a2bf478831d013923faaf3b898b0b07b5b4b8c3e18841df1b00e0d7377"
+    },
+    {
+      "path": "scripts/eticket.test.mjs",
+      "sha256": "00618dc308900b8b6a4cbd5e88aaecbbf8deda381ea5a27f6aa0e9c461b15068"
+    },
+    {
+      "path": "scripts/explore-destinations.test.mjs",
+      "sha256": "3ef16322fce92f16aba3fc9247650cae9e1f41137dc28ab9e4a555d824ff0f94"
+    },
+    {
+      "path": "scripts/notification-commit.test.mjs",
+      "sha256": "681365fe104833b5e01e725a76e23de765397a54591c91a40886aaa9d14686b8"
+    },
+    {
+      "path": "scripts/notifications.test.mjs",
+      "sha256": "a86dd55dcc2c336be8edbdcc3cf97721e9397dd16d5237f8794942edc8d50cb5"
+    },
+    {
+      "path": "scripts/places.test.mjs",
+      "sha256": "84337728e3324dc7804f5a8cccee2acb8b8f737590d64075c73fd9e319c35fb7"
+    },
+    {
+      "path": "scripts/probe-smtp-runtime.mjs",
+      "sha256": "947359dc6d182aa1f6bc44c198988029c808875acc70efe55d9cefa5cbe313d3"
+    },
+    {
+      "path": "scripts/smtp.test.mjs",
+      "sha256": "ece0e743c8c7c817704f7a705877000b4aee5da7fc905579b1a2c99f46e015eb"
+    },
+    {
+      "path": "scripts/trip-catalog-mapper.test.mjs",
+      "sha256": "77e1327834dc0176f3d2ff211db1069d93d1ea2a5838b597799bb11de976ba58"
+    },
+    {
+      "path": "shiap-v1-4-automatic-pricing.sql",
+      "sha256": "f875644d1ffce162e085ed3612c5643edd9ae46a87e29ccb821e9af6a8d7036b"
+    },
+    {
+      "path": "src/app/activities/page.tsx",
+      "sha256": "dd2d17aa184ea913c8f1b66247b56b328ce2055b44b66287f258baf35c5043d9"
+    },
+    {
+      "path": "src/app/admin/activities/page.tsx",
+      "sha256": "a96ad98c93e37a40ed9fa6308368c77758b6aa410bb8edc53bf11eb2a36afc8b"
+    },
+    {
+      "path": "src/app/admin/bookings/[id]/page.tsx",
+      "sha256": "d9d37f48abdad656bfdbeeff1f2eb77d1091487c724c6ea207330c6c1734f2b0"
+    },
+    {
+      "path": "src/app/admin/bookings/page.tsx",
+      "sha256": "df317daa0220457361acaf292dc91876364d1234ac953995adcd2edafc0c75b8"
+    },
+    {
+      "path": "src/app/admin/calendar/page.tsx",
+      "sha256": "e6d6641ed27591efa0352b8d4fdea40a72880a526dd6bed30dc016aec959c339"
+    },
+    {
+      "path": "src/app/admin/custom-trip-settings/page.tsx",
+      "sha256": "6a488d73b30a5a162ca967b20cb387b04a144bc6962656f8c1bd6f58392b2cd5"
+    },
+    {
+      "path": "src/app/admin/customers/page.tsx",
+      "sha256": "4afff8670d45352abf8bdb59371157cfd315581019a536d6b9867a035ef06a2c"
+    },
+    {
+      "path": "src/app/admin/experiences/page.tsx",
+      "sha256": "d2a24e8f488e9134505363771b5e7fb8fa0b08961fa572e04c21459f12102432"
+    },
+    {
+      "path": "src/app/admin/finance/actions.ts",
+      "sha256": "e61a7556e0ed789b7144725d09a418a03f7d42082d405862140b4318a999f627"
+    },
+    {
+      "path": "src/app/admin/finance/page.tsx",
+      "sha256": "ddc09df6aaa22945cd0ae1887466d34f47a84b8ddd4267c56a501fb882e2ab16"
+    },
+    {
+      "path": "src/app/admin/layout.tsx",
+      "sha256": "583a76bd260d1ea34df00b16f4c4101858a729c79fc2a5abce63386fe05cda3d"
+    },
+    {
+      "path": "src/app/admin/notifications/page.tsx",
+      "sha256": "8e457f883ab24060b46cb544a53a73cc96a8890544df64e7a54dc248c7c4e501"
+    },
+    {
+      "path": "src/app/admin/page.tsx",
+      "sha256": "b0bc6b6737d9babf096b01c723411c5547d8cda9defdd1c5fa5d6be096996d86"
+    },
+    {
+      "path": "src/app/admin/places/page.tsx",
+      "sha256": "cd5020ba71350c2cd4c6dace832cbd8da3b5e95e3cb14a03b4f1a0fd75eb0a70"
+    },
+    {
+      "path": "src/app/admin/profile/page.tsx",
+      "sha256": "0d2097a802cdeb7fd0a5a7111cdc3acff65968fe58a0a364802e08bdadbdaa80"
+    },
+    {
+      "path": "src/app/admin/rental/page.tsx",
+      "sha256": "b662922bbbb1a2506277ffe022e563d08cb8f68996e90ae09c4bfcff5275685e"
+    },
+    {
+      "path": "src/app/admin/settings/page.tsx",
+      "sha256": "e633d6837aa1ab7ffd6b7a443f31a9f42eb02c3c59d0d16ee7297416773ed7fc"
+    },
+    {
+      "path": "src/app/admin/shinema/page.tsx",
+      "sha256": "e3fef6ddd4aac7428f20a15d0a807b2e5eaabdb2afbc34a70f820beb1bbb6168"
+    },
+    {
+      "path": "src/app/admin/site-icons/page.tsx",
+      "sha256": "e7bfe87f18e350dbb685d438976a4657c3eddc3c4a374542ab0b0a846bb6814d"
+    },
+    {
+      "path": "src/app/admin/stay/page.tsx",
+      "sha256": "9d60e55529b057bcf32e4b1f078870b91178c879a2f9165bcc599e5e9d7cf906"
+    },
+    {
+      "path": "src/app/admin/tickets/check-in/page.tsx",
+      "sha256": "b84ab93850336b62862c01052bab5be1d68706b30ee51b0de9a6687a7c679162"
+    },
+    {
+      "path": "src/app/admin/trips/page.tsx",
+      "sha256": "1051f5526af03e69fbd5799cea5fc131358d868fa3bec07dc73abb69092c4bde"
+    },
+    {
+      "path": "src/app/api/admin/bookings/[id]/whatsapp/route.ts",
+      "sha256": "20f8b1cc013fc73ac8891d225fdb1ba069708ac0ed3ea1f586869aed6d302e98"
+    },
+    {
+      "path": "src/app/api/admin/bookings/manage/route.ts",
+      "sha256": "59f6c38442ff2fc42266e50f508a42c5cb48b70890bc0d67f64a018a0c74f009"
+    },
+    {
+      "path": "src/app/api/admin/finance/export/route.ts",
+      "sha256": "741ddf823ae3c9730a7624275b197806b06602948a7ceab13f9be9e5a71c91ce"
+    },
+    {
+      "path": "src/app/api/admin/notifications/route.ts",
+      "sha256": "a7d68801152f9eaac9d57b1880ecc2a8dd5a95a4dfb07978a28ad6d49e42de4a"
+    },
+    {
+      "path": "src/app/api/admin/notifications/settings/route.ts",
+      "sha256": "9c1da5b96ccfde4dadcdad83b3cd0f18ba53c17a527aaadb5fe01c54d1ed297a"
+    },
+    {
+      "path": "src/app/api/admin/notifications/test-email/route.ts",
+      "sha256": "4f802e5b1599ecead0c5e221637d8abab74a5d7ff4b092b2c59a6d110c64766f"
+    },
+    {
+      "path": "src/app/api/admin/settings/business-contact/route.ts",
+      "sha256": "ccba878799e85a820f3eb8ea1410e10dc29cdcb211e6f3770579add1c6efb7ce"
+    },
+    {
+      "path": "src/app/api/admin/tickets/check-in/route.ts",
+      "sha256": "1e30a1abaa953c8f4eae02d848245d23bc752a06f5f693058d0bda4f139d210f"
+    },
+    {
+      "path": "src/app/api/admin/trip-departures/[id]/route.ts",
+      "sha256": "4715247df95b65c03172e371c01c13625c8a9e6feb69c5331da7b7bbba7f9215"
+    },
+    {
+      "path": "src/app/api/admin/trip-departures/route.ts",
+      "sha256": "f4c4de62ad90e006dc68ec8b7240d0ac805e9087919b2365e8dacaa1cf8240e0"
+    },
+    {
+      "path": "src/app/api/bookings/[id]/proof/route.ts",
+      "sha256": "e2530bbf384dcc7209f8567d0ae3f34a954cc8108fbd79c40c39deae13000942"
+    },
+    {
+      "path": "src/app/api/bookings/[id]/route.ts",
+      "sha256": "a4b794dd0f83b556a21f11bfa017463f08e41050f3e69f8bdc9ca38193e0b3c1"
+    },
+    {
+      "path": "src/app/api/bookings/[id]/tickets/pdf/route.ts",
+      "sha256": "815efc2cc3a72e15804438b68c5bef20bbf5815dc80225e252438f81489207d2"
+    },
+    {
+      "path": "src/app/api/bookings/[id]/tickets/route.ts",
+      "sha256": "b4944509dae7c7ac3e2251db5208e0d1cad731d5a8707f89733eafc362080f7c"
+    },
+    {
+      "path": "src/app/api/bookings/fee-quote/route.ts",
+      "sha256": "012807cafd099c5a4887e71f2fbc4b2a066cbaad5c12b4bf00863a987f806f5f"
+    },
+    {
+      "path": "src/app/api/bookings/route.ts",
+      "sha256": "cee08034260ad35c62154f8d958b6a3971c52c7cd9927c5803780303bc0eb3e4"
+    },
+    {
+      "path": "src/app/api/bookings/session/route.ts",
+      "sha256": "33dad4fb02c9099eb81db4b19d9de036769c98fcf18ebd76b6c5554d468ba095"
+    },
+    {
+      "path": "src/app/api/internal/notifications/dispatch/route.ts",
+      "sha256": "92f8877bd52651db62d423b57b8cde569decc7bb6955d08cf7bcd46543a2835b"
+    },
+    {
+      "path": "src/app/api/places/wa-click/route.ts",
+      "sha256": "29ae4fcd18c92e02ae32b9c73c7c28fe5e9780b8fc77254996f6381c501a072e"
+    },
+    {
+      "path": "src/app/api/profile/avatar/route.ts",
+      "sha256": "d0e2e34e6b6584e262f620321bd5b79b9f71cebd51e59abcff9911e8eff183d9"
+    },
+    {
+      "path": "src/app/auth/callback/route.ts",
+      "sha256": "a70e90041d29a8d24498052632351d0c86bad91b9bef2c817673a8892b6f5aeb"
+    },
+    {
+      "path": "src/app/booking/layout.tsx",
+      "sha256": "3b8a316d493ed55087d638f54d0e2ed0d16c2df3566737491a2aca7eb3ff7e39"
+    },
+    {
+      "path": "src/app/booking/page.tsx",
+      "sha256": "baf7b8d6fbd02f1cc5239494e207d06d6c502a627583b18700ae4873785ee253"
+    },
+    {
+      "path": "src/app/custom-trip/page.tsx",
+      "sha256": "a34aa99a72d3202fc3d2656650ff4f537e50f405e8d129040951a0714bda58f2"
+    },
+    {
+      "path": "src/app/experiences/[slug]/page.tsx",
+      "sha256": "b4f81d5f17ae4696f78b210f95e1cc3d64e4faa2d4142f731d2195d190bf8bb7"
+    },
+    {
+      "path": "src/app/experiences/page.tsx",
+      "sha256": "c7318d062e704d463b0a94d579d858b3053332e643e08b37ba8dee912e6a10d7"
+    },
+    {
+      "path": "src/app/explore/loading.tsx",
+      "sha256": "2ff2aa6979dc65dfb90ce15768736cca43305b476c164f05d5f57cfc8b23fb24"
+    },
+    {
+      "path": "src/app/explore/page.tsx",
+      "sha256": "42c627b9424d00ab51c66061c7db892d8dda4b5ff8c30823005746ef39ed1297"
+    },
+    {
+      "path": "src/app/favicon.ico",
+      "sha256": "d203f91038f2b22b235917e7562a5812c103f3974aebeb187df352b3fb9b9300"
+    },
+    {
+      "path": "src/app/favorites/page.tsx",
+      "sha256": "cd18b06448507ea7f188ec165602fb48a22387680656122bbc000196566811c4"
+    },
+    {
+      "path": "src/app/fonts/geist-latin.woff2",
+      "sha256": "9b6f5ff45b278c744b5f379a2c4ecbaf858a842b8eaf82ac8d21b699ca16c608"
+    },
+    {
+      "path": "src/app/fonts/geist-mono-latin.woff2",
+      "sha256": "5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b"
+    },
+    {
+      "path": "src/app/forgot-password/page.tsx",
+      "sha256": "84e3f46cf77a1c41de593e854315f261389e77a8c7837e7e07ab30565d571a0a"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "2574c91abf8d20889a3fb721f7a28eb5de31bd1e36d1479d76c900c173b2ec46"
+    },
+    {
+      "path": "src/app/icon.png",
+      "sha256": "66b23e4cfec3e253329383d4bc4420935816a001e567c3e253da1e1f8ce16caa"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "edd91de21381d5cda1cb709335bf6a6c60c89c7fb1f5d24cf71cb5ea9862b35e"
+    },
+    {
+      "path": "src/app/login/page.tsx",
+      "sha256": "0f26d9a458962036e9a40ba04e608098fe58bd99967c250e30309067cf48ff0c"
+    },
+    {
+      "path": "src/app/my-booking/[id]/page.tsx",
+      "sha256": "f884720c7c4dca3cc073ebb67a138d03377d83ce8f5439a7389b5be71f1df7b1"
+    },
+    {
+      "path": "src/app/my-booking/layout.tsx",
+      "sha256": "3ca9781a5e9ab00c1b2fd2ea89c83a503ad25aba34d9041f4c1375af7a762287"
+    },
+    {
+      "path": "src/app/my-booking/page.tsx",
+      "sha256": "312a638be1c48326113629b7460e15a46877c9abce4a5c882f0243965e80c1b8"
+    },
+    {
+      "path": "src/app/navigation-preview/layout.tsx",
+      "sha256": "584bf837e675ff9f1ebeca7ce47447aa6e55355bb9169311532c02aab6f80771"
+    },
+    {
+      "path": "src/app/navigation-preview/page.tsx",
+      "sha256": "44b12201ab1d1527b6f65fd59672351d241cb790a8eec0f4d67ec184f3592bbf"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "8238b7ba86f25b04235b1ab47ad87c0441e26c4b4f16479cb9176ec141acf2f7"
+    },
+    {
+      "path": "src/app/places/[slug]/page.tsx",
+      "sha256": "30eaa5cd445d5570ac594c5f650a907fc21bf1c2efc258cc831edc43d0f6cf04"
+    },
+    {
+      "path": "src/app/places/how-we-verify/page.tsx",
+      "sha256": "0d01c12a06b04f4236990bab743c564f2d975f5ee8e4070c19b76b4cf5e3f1dd"
+    },
+    {
+      "path": "src/app/places/loading.tsx",
+      "sha256": "e6d0b3cd92cc336a1cd6efd2d1b580f28ab08abd553d79221a69d36cdcc0e7d0"
+    },
+    {
+      "path": "src/app/places/page.tsx",
+      "sha256": "a2772442f153da9a7c09c621c4324f16b80ee33bcbcb38b3029a835ffd35886f"
+    },
+    {
+      "path": "src/app/places/partners/page.tsx",
+      "sha256": "039899cdec8d6821b3af4a76ab801691635f1aaf0486f96fc6bf76882bd0b030"
+    },
+    {
+      "path": "src/app/profile/layout.tsx",
+      "sha256": "42f0ebd0d9b3f48da5ec3a866ee468dccc13ab1de346126cceffde579fcf2a46"
+    },
+    {
+      "path": "src/app/profile/page.tsx",
+      "sha256": "9f582337d0409237d152d31d12c9a86085d04179ea79fb358b8cfa568897e319"
+    },
+    {
+      "path": "src/app/register/page.tsx",
+      "sha256": "5c498ee84038dd03f37ad2d39c1d2de4134648fa0653d2799c28338c7e2e7ca6"
+    },
+    {
+      "path": "src/app/rental/page.tsx",
+      "sha256": "2a2efaa087a218a9bc2c3389a298f70d248879c2ee0aa435b35876459bb22c09"
+    },
+    {
+      "path": "src/app/reset-password/page.tsx",
+      "sha256": "df206f813fb8cf20be91bfdd0bcde7298a2ed90244377d6e84906d649416fa31"
+    },
+    {
+      "path": "src/app/shinema/page.tsx",
+      "sha256": "56ae3fb73584f590c741f0427a7fe25ae940417fd4771ee8937bc3d4235aadc3"
+    },
+    {
+      "path": "src/app/stay/[slug]/page.tsx",
+      "sha256": "a436f3c62f58f18ddf40e350679a7b7e13e3d3cfbc97b176d2e7ae32114076e6"
+    },
+    {
+      "path": "src/app/stay/layout.tsx",
+      "sha256": "9348ca4ff612635fd7c4824f8e25728770a936596ec3e5d8e70774712e77ac72"
+    },
+    {
+      "path": "src/app/stay/page.tsx",
+      "sha256": "61eab2fcff6e16012ff77e6909a875ad1dc493ba0a9ae34d78c8a0d03125a040"
+    },
+    {
+      "path": "src/app/trip/[slug]/page.tsx",
+      "sha256": "0eb6995dee2bef62b505167779f2894cd1c4ab17a4398af035b0b73985c36333"
+    },
+    {
+      "path": "src/app/trip/layout.tsx",
+      "sha256": "c2910c3dd697765feaa378887ec09ead4ffd6b26be1f4aea2f8f64c422939199"
+    },
+    {
+      "path": "src/app/trip/page.tsx",
+      "sha256": "6c37a6fa459eaa56590e2bed54245cc46bf2c680d0efdbca4c45c961b77d73b0"
+    },
+    {
+      "path": "src/components/admin/admin-profile-settings.tsx",
+      "sha256": "c6cae5f1657e35519cfc687999c3dc88a047a2ea268b3359c645de3b79faa344"
+    },
+    {
+      "path": "src/components/admin/admin-shell-navigation.tsx",
+      "sha256": "7e12e0e463a04b9a06029a6c5d103f85c3ba280a825c07d887c5b50e41b7b455"
+    },
+    {
+      "path": "src/components/admin/booking-calendar.tsx",
+      "sha256": "1ef3e537c30525d213b0bed4995254a3d516b4378f3ee5095812636b5dd362ce"
+    },
+    {
+      "path": "src/components/admin/booking-list-client.tsx",
+      "sha256": "33cf5b459bb6bd756aef10481111d914861380cb989596fd79e8cba8ab6bbb69"
+    },
+    {
+      "path": "src/components/admin/booking-operations.tsx",
+      "sha256": "5564093ec81befc2630b023d69ef78212f03a1ca130f7eb6a1fc6374886c09ec"
+    },
+    {
+      "path": "src/components/admin/booking-whatsapp.tsx",
+      "sha256": "90be2e989627343e0a71436b60ae5d9c08e816c5158e3f3244c0e2058660c6c9"
+    },
+    {
+      "path": "src/components/admin/business-contact-settings-form.tsx",
+      "sha256": "24c4ea3209baa1a702b985a2f160a262f3d8f992660059569ab994473a40cbaf"
+    },
+    {
+      "path": "src/components/admin/catalog-manager.tsx",
+      "sha256": "7d54fae23d26d773d462e85306b18be2696073a6ae50c6647cb60cb0c7079e85"
+    },
+    {
+      "path": "src/components/admin/custom-trip-settings-form.tsx",
+      "sha256": "d98558dd8cb86b1219845665c83d286f9ce6a33c8ce39884b74d3cb48aa4ace0"
+    },
+    {
+      "path": "src/components/admin/customers-list-client.tsx",
+      "sha256": "be49796c54c7bf57f72d3e9a4db0de002359777127c72abe578be38a13592e78"
+    },
+    {
+      "path": "src/components/admin/experience-manager.tsx",
+      "sha256": "53e524cdffc2b6726574f362f51188c4a12e8beffa702a27e0693a8f7c1a6eea"
+    },
+    {
+      "path": "src/components/admin/experience-platform-manager.tsx",
+      "sha256": "77382368fa6bfe09400e1fa1b73f430ed020eb1334ebeebe7df54f02f96364d0"
+    },
+    {
+      "path": "src/components/admin/experience-request-review.tsx",
+      "sha256": "adc64529ac404b8db86810cc3faab198c4e5e0ab2645e9587c83e9a7de53b583"
+    },
+    {
+      "path": "src/components/admin/finance-charts.tsx",
+      "sha256": "d596361575c39f4442402d60638153c41a042813fcbaee2fd80e73e848f9cb9c"
+    },
+    {
+      "path": "src/components/admin/home-hero-settings-form.tsx",
+      "sha256": "e9800f92b34c7ea8e828a7b8f8d42ec147a3c56d57129bfea68eafb7abc19cb2"
+    },
+    {
+      "path": "src/components/admin/itinerary-builder.tsx",
+      "sha256": "4900fac8d980bd74def125487df2c8a146fe2e0c6f5ce32f5abe54ddd62750b2"
+    },
+    {
+      "path": "src/components/admin/notification-center.tsx",
+      "sha256": "39d8edb92d23492ee8260cb42e74c72b89ef64b90fba7dca21806c0c666c143d"
+    },
+    {
+      "path": "src/components/admin/notification-settings-form.tsx",
+      "sha256": "4384116dc90ebdeab4a91ff8d2f4558eb9830ecbeb8c1f16aeef80b6b52327b5"
+    },
+    {
+      "path": "src/components/admin/payment-settings-form.tsx",
+      "sha256": "da4abd5a6079f22e637757a7f485a7aa1bd8d5dacd23660b8575f37a5137d25e"
+    },
+    {
+      "path": "src/components/admin/places-admin-client.tsx",
+      "sha256": "2187cd2fa93cd7fcbe2fc99be01859deead1a5ded18e392d1f45b96b80c49944"
+    },
+    {
+      "path": "src/components/admin/private-tier-editor.tsx",
+      "sha256": "bb0b5a54ad4e47bbb7901c0384647f9e89ee8c485869d3712745b861fe7b3372"
+    },
+    {
+      "path": "src/components/admin/service-fee-settings-form.tsx",
+      "sha256": "d685c83c6eb60e24fa79c1b3c4b7966e65f5fb0fe4be3e8cfa3b1038a0ea87b2"
+    },
+    {
+      "path": "src/components/admin/site-icon-settings.tsx",
+      "sha256": "34df9875ab691e274479fd0bdd2c352b8f9f486c15aa568e8f0d3206fee77a2c"
+    },
+    {
+      "path": "src/components/admin/stay-facility-picker.tsx",
+      "sha256": "cc6beedb161b10e8d1bad9dd82acb222acbd7b25a36792d9c7e8dd6e7019e81b"
+    },
+    {
+      "path": "src/components/admin/ticket-checkin-scanner.tsx",
+      "sha256": "5984e9517fb8c6fe962591455d54222870f6dc4960d8bd2aa07d6104fc99f5b4"
+    },
+    {
+      "path": "src/components/admin/trip-departures-manager.tsx",
+      "sha256": "d17b70c352cafef4e591284a441ca773a9eba2db129e11822f7e476fb84a8e61"
+    },
+    {
+      "path": "src/components/auth/auth-form.tsx",
+      "sha256": "d365e043aeb937d44649079d79331d44dff3fc3a859db0dfa9b2acbc37df8cde"
+    },
+    {
+      "path": "src/components/booking/booking-engine-client.tsx",
+      "sha256": "d4a4b24877eaee46a34ea66765a6c55b26c0dae9ac3dd3875834f6abca0d9d77"
+    },
+    {
+      "path": "src/components/booking/custom-trip-planner.tsx",
+      "sha256": "155acb67b33f7eb0d44777b51c21e99b1118a859c71538fcf7d336ea193c646a"
+    },
+    {
+      "path": "src/components/booking/service-category-icon.tsx",
+      "sha256": "f77e411a764e25093e694574f295bfd40d6c178b3f0eaaa94c780d0a05bc2cf5"
+    },
+    {
+      "path": "src/components/booking/service-fee-summary.tsx",
+      "sha256": "2b09d124df3a7d52f466f4f2f4360c50c504b07e2b1e57b857a144ce950bf73b"
+    },
+    {
+      "path": "src/components/customer/booking-detail-client.tsx",
+      "sha256": "b39e31e0cd3e4e6a16e20c09c4518d887715133fc9750406ac47b3d0a859292d"
+    },
+    {
+      "path": "src/components/customer/payment-proof-upload.tsx",
+      "sha256": "f9fdfbefbf27d99876e4a1824d2c1f26c66200dc3008b07fd67dfc57e1bc5c54"
+    },
+    {
+      "path": "src/components/customer/ticket-vouchers.tsx",
+      "sha256": "f550ce3101217b55e0b9442bfa5798fc13b84a1ea88d59d768b2a26622ac1627"
+    },
+    {
+      "path": "src/components/experiences/experience-booking-form.tsx",
+      "sha256": "b799610ab27a47bfbf44adf5a9f186e4b0e94351752b6f5548efac529e14a3b6"
+    },
+    {
+      "path": "src/components/experiences/experience-catalog.tsx",
+      "sha256": "fa079c3fed380717910f718f5ca398c56635bea1618c204a890f95abdfd81c92"
+    },
+    {
+      "path": "src/components/explore/explore-catalog-client.tsx",
+      "sha256": "0d9eba2bc89c2cc20dc2ce16f934e4ee1a270acbd485748586a2c9779cbf18ff"
+    },
+    {
+      "path": "src/components/home/favorite-trip-button.tsx",
+      "sha256": "dd369a63fd99097528ac3747b467581f17fdd174f903211b6a1fd58278403919"
+    },
+    {
+      "path": "src/components/home/favorites-page-client.tsx",
+      "sha256": "b94e17431877f4b121a6e6b389f89f0196fd593400224d3e8d9920c49a9ba66f"
+    },
+    {
+      "path": "src/components/home/home-search-form.tsx",
+      "sha256": "be5f9605166d40be6cf0a4d58009818123a93774268f50f2e1e346453414c27c"
+    },
+    {
+      "path": "src/components/home/homepage-client-chrome.tsx",
+      "sha256": "182e80e90c17a1b0439409ec809e7e7c2ba1c98521740c327af39ebe6f70bd22"
+    },
+    {
+      "path": "src/components/home/homepage-sections.tsx",
+      "sha256": "04b804805428dfdcb051f01bdda740f7f45b5f7f6d20471ca00fd614f089b61e"
+    },
+    {
+      "path": "src/components/home/homepage-service-icon.tsx",
+      "sha256": "6876fd41dde7993484ca32fe15ed669ebccc683bf46db549ff921e156488f7bd"
+    },
+    {
+      "path": "src/components/home/homepage-ui-icon.tsx",
+      "sha256": "7b14bafda41789897f5917960f62facb9c2d51df37ea1a0a725e656e6e1b6e06"
+    },
+    {
+      "path": "src/components/layout/app-header.tsx",
+      "sha256": "853a2df0566eb8ab617a756f73e0e18d85024d9a2e20afee21f885ddfb14ebdf"
+    },
+    {
+      "path": "src/components/layout/app-shell.tsx",
+      "sha256": "dcfb0478fbe492ad3cb15d3d839c720c31bf7af3fde903adecfe0c6a8d13b8a9"
+    },
+    {
+      "path": "src/components/layout/bottom-navigation.tsx",
+      "sha256": "6cf17d5eb9088e3251a7cab4ec8391bfd0db3cd8c5f264e1279825440fb4ae56"
+    },
+    {
+      "path": "src/components/layout/customer-app-shell.tsx",
+      "sha256": "cdc189bf2713e992478126cd31e5388da0d820990ed55a2a8922ab3fce69c115"
+    },
+    {
+      "path": "src/components/navigation/simple-app-header.tsx",
+      "sha256": "09f7ba2a3b918fbb87e87a457ac5dabe9ed8b2f50f5b8ac004b17ae476b10a41"
+    },
+    {
+      "path": "src/components/navigation/simple-app-shell.tsx",
+      "sha256": "b9a3b32346e32dace855d28399d89253ec75b6d2135f9e5696f3faf5e1e25edf"
+    },
+    {
+      "path": "src/components/navigation/simple-bottom-navigation.tsx",
+      "sha256": "e95aec3342629007cdf31f07161844d5feca745618e73588bb03a3ea15d8c6b0"
+    },
+    {
+      "path": "src/components/places/directory-client.tsx",
+      "sha256": "6e81d20cc2b93a23491234731cd1704417a6682894283bc945bfb9973e4042ae"
+    },
+    {
+      "path": "src/components/places/whatsapp-link.tsx",
+      "sha256": "3fd5cf7470eed0fec13f83085be6b2081589df843bd02bdb8ef3f1694f4bbd7d"
+    },
+    {
+      "path": "src/components/profile/profile-avatar.tsx",
+      "sha256": "a98f1cf255caebd8b7e100a1a3363cbc85d0c0c7799484840bc61d995ae009ea"
+    },
+    {
+      "path": "src/components/site/site-icon-provider.tsx",
+      "sha256": "a7b937ea352512be246a290ae64555710d501ea3f21d1fbd3fefdae157e1bd2c"
+    },
+    {
+      "path": "src/components/stays/stay-catalog-client.tsx",
+      "sha256": "e07ada7bc92397b0492fd953f127d002b687fe11a5ebd3610a61e9db3f1c68c7"
+    },
+    {
+      "path": "src/components/stays/stay-detail-client.tsx",
+      "sha256": "7de7e75a1ffdb4a4aaa482c7ad44438bcb09992c908e36d90e06fd8389aeac42"
+    },
+    {
+      "path": "src/components/stays/stay-facility-icons.tsx",
+      "sha256": "b2f241964c7274d60e9bdd49a1953cee364b88ff63fe8fd9b5c44b8eea3648f9"
+    },
+    {
+      "path": "src/components/trip/private-trip-price-simulator.tsx",
+      "sha256": "a2c5b3ffe53e9ee955d540e26680c0abd312bfc227609cf72f5f8287addbe2a9"
+    },
+    {
+      "path": "src/components/trip/youtube-tour-embed.tsx",
+      "sha256": "6d4b6f4fdbcd53b600e9d1b8b3d35077b5b88191dc003e6ef3cb0e6798e89360"
+    },
+    {
+      "path": "src/components/trips/trip-catalog-client.tsx",
+      "sha256": "7c6d4c2727cf970d2dc6b3209bb26b651dbc666debc3f9825f6beac96d7c5149"
+    },
+    {
+      "path": "src/components/trips/trip-detail-client.tsx",
+      "sha256": "0675958acaea49199a0c66ed130952930b5e7e85e3cccedb8c10a6387537ed57"
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "sha256": "452fdc47e27eb9027e5538c4a5ab922bc23bcbeb7287c72291fa7d05011bd9d5"
+    },
+    {
+      "path": "src/components/ui/layout/app-header.tsx",
+      "sha256": "bb3ffaa09678b1cf98608c1c2e2da6064ca5e2c2d4941ab139eeb70d51a49e07"
+    },
+    {
+      "path": "src/components/ui/layout/app-shell.tsx",
+      "sha256": "11162f77bdc24be7be4cf79fffa6f6083f05f8034129ba37d41279a39f03cda6"
+    },
+    {
+      "path": "src/components/ui/layout/bottom-navigation.tsx",
+      "sha256": "efba7d3ddd0b8c4c6361e43527a4a4f1782f8245b1e30226fd0ef51e0e1356ec"
+    },
+    {
+      "path": "src/components/ui/layout/services-sheet.tsx",
+      "sha256": "85114f0367e1f3054f2df4c9f986ab8a40b7a5a8e681d205f6bd1cbfb3c43a7a"
+    },
+    {
+      "path": "src/lib/admin/api-guard.ts",
+      "sha256": "40417eea549c514770e8b71df0bb9bca55571e8a1419f29709dacaf8907cb4c2"
+    },
+    {
+      "path": "src/lib/admin/booking-category.ts",
+      "sha256": "b734faf907c9bab3379072e4a51faa67cf188c2a61707de317a0634a3ce7611a"
+    },
+    {
+      "path": "src/lib/admin/booking-eligibility.ts",
+      "sha256": "ad1c164eb3f327488965a1d428f411a7a4575762dd329bd414a457e60c84db97"
+    },
+    {
+      "path": "src/lib/admin/guard.ts",
+      "sha256": "718d94ebe454461c2086a2892e6284576175d608bd8577ef8f3081b4310bef55"
+    },
+    {
+      "path": "src/lib/admin/release-notes.ts",
+      "sha256": "1cdb545f4ac3a6c4ffb1636f7608b1168ec21e2535813f0bc1a66151f1cc64b8"
+    },
+    {
+      "path": "src/lib/booking-engine.ts",
+      "sha256": "e56ecc2f915b0f43cea28a64322f19db0871f1a2402ba8dd8f1bad9a848b5ab8"
+    },
+    {
+      "path": "src/lib/booking-status.ts",
+      "sha256": "8ba9e516f612a3240dcc9d5d9afe00782fac08225ee70580780462f8f15420ef"
+    },
+    {
+      "path": "src/lib/booking-view.ts",
+      "sha256": "14dcfc0c628e41f4a4d8de2aff7d0553baa39f998fdbfa2c614cc94d94756e8e"
+    },
+    {
+      "path": "src/lib/catalog-mappers.ts",
+      "sha256": "924874a56d67423a6b8d62e0781f10a60d16fa13798619dcf4d5283bad439346"
+    },
+    {
+      "path": "src/lib/checkout-client.ts",
+      "sha256": "0e678e2453b0770eecf8ab884c299fb497aa11203dc91acae828e2a7f59ff4b4"
+    },
+    {
+      "path": "src/lib/customer-bookings.ts",
+      "sha256": "fb8d9379f1ea930c77a5d1b7a3b92ed1f6079ffe1e6be3a5dc955b7f684d528e"
+    },
+    {
+      "path": "src/lib/etickets/credentials.ts",
+      "sha256": "e84c7ea71cb6d89d274291b6875ab825d2b9874ad19fa912f41f8ff9207aba2f"
+    },
+    {
+      "path": "src/lib/etickets/pdf.ts",
+      "sha256": "223248afa87272580be1e5ef05fec2e43f5bdb9bb1f34f0a10d6dbfc80563c46"
+    },
+    {
+      "path": "src/lib/etickets/server.ts",
+      "sha256": "2d21fd720da29952418935b7ccc7c0912c93a5d28e102e9f6c66914eb75d09b6"
+    },
+    {
+      "path": "src/lib/explore-destinations.ts",
+      "sha256": "2867f6f8382adb3bdf03b94c0abc0b601a5e7b4db131e4f5ff4e8fbf91192c6f"
+    },
+    {
+      "path": "src/lib/favorites.ts",
+      "sha256": "6d92c620a5bbd3e0be5f23c54a58ef3a3b8856db4fa9d54132faac3ec8e1e0de"
+    },
+    {
+      "path": "src/lib/notifications/authorization.ts",
+      "sha256": "67593cde8a4055b7346c7957a8c3fe19b7dd4acd2632d57a7a78e75ee7534a61"
+    },
+    {
+      "path": "src/lib/notifications/messages.ts",
+      "sha256": "a37766d373fb7c513ec4e7da89daa8cd9c084ce1c6d1d31bea1da6047786f6f6"
+    },
+    {
+      "path": "src/lib/notifications/provider.ts",
+      "sha256": "6d78f902247faa736efbb53e7524e8aa42dcfac092d60a6d69a204c897c8f5bf"
+    },
+    {
+      "path": "src/lib/notifications/server.ts",
+      "sha256": "9789be1473bf67c7e85c2ff8a611c7a0529855647299182ae466e3b4f9522029"
+    },
+    {
+      "path": "src/lib/notifications/smtp.ts",
+      "sha256": "88cae8b4a51d4ccd35934bc36749d9b720b29de4bd258bc24678fc4420f4a64f"
+    },
+    {
+      "path": "src/lib/places/referral.ts",
+      "sha256": "676c51cc37699bfa6217d59e3a5eb8219a91a6e95a9df3fe10ed2c1c99e78f36"
+    },
+    {
+      "path": "src/lib/places/types.ts",
+      "sha256": "5647f7bbc92bdbee2d226a70f78c1ff24f2e0f34db6bfbb738ff52aa99407246"
+    },
+    {
+      "path": "src/lib/places/utils.ts",
+      "sha256": "82e1581ef34d1749b3ae4cd721c532e08db4ac7b94268968e6674881feaa4217"
+    },
+    {
+      "path": "src/lib/profile-avatar.ts",
+      "sha256": "dce59c0a53596e9ed2f81ceb2f3c4e6b57207dfd41e84bd601cc8ddc605b4396"
+    },
+    {
+      "path": "src/lib/rental-categories.ts",
+      "sha256": "e7e4896a64791d5cb0028cb443bb3949329b7f8d9db0c95780676651b7a7ec6f"
+    },
+    {
+      "path": "src/lib/service-fees.ts",
+      "sha256": "c0a0e80c494de1c9f93af5a38c0c9a6ad70a5cf9cc1f0f7a9e268a807875f416"
+    },
+    {
+      "path": "src/lib/site-icons.ts",
+      "sha256": "ecd8b5a48a5846e8248e49740f2c33023f574920a14655a357e49070ca4e72c4"
+    },
+    {
+      "path": "src/lib/supabase/booking-admin.ts",
+      "sha256": "6df3dfd1ea2c71e869cca8835f3dbaf58975ce7caf1b58adc908a05a3fbb4a2b"
+    },
+    {
+      "path": "src/lib/supabase/client.ts",
+      "sha256": "84e7200eae694a89b7eb5323cb7f5e0d3fe75c3e6cd8ed4934155ddfe67d8a87"
+    },
+    {
+      "path": "src/lib/supabase/proxy.ts",
+      "sha256": "ac4fa0bd4c1bed145718263849e3df4c676af865b3d0cc0d9938e40508943b7a"
+    },
+    {
+      "path": "src/lib/supabase/server.ts",
+      "sha256": "6cead0c685f7487ac41f03508e10505b4b52ac0fbafcd9f4990796ad35ed91e1"
+    },
+    {
+      "path": "src/lib/trips.ts",
+      "sha256": "f8cadc4eb0326cbc8865659874f3b4b68ed8014e52c3d7b319fb2dd92cec6226"
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "sha256": "478739b1eed969267a388fc17db539b53aa66cf15a9467e475274b36de8783f2"
+    },
+    {
+      "path": "supabase/.gitignore",
+      "sha256": "eccd25cd50cd8cb5447b70754f7dfa8dfc0008ce7b147c96f53fc4cfe6c78783"
+    },
+    {
+      "path": "supabase/config.toml",
+      "sha256": "f369b49fb8ec408186d6ce9d2d6cf0308ddcc3499678d1ba3b2db89d4e301165"
+    },
+    {
+      "path": "supabase/migrations/20261107042911_remote_schema.sql",
+      "sha256": "4e019bbf193e3e511f35dee0c5a62a03d817a3cac55fcf71c80f572ac2025764"
+    },
+    {
+      "path": "supabase/migrations/20261107050000_harden_legacy_table_grants.sql",
+      "sha256": "09090955c79f876b22d87bf5fbf4a5b631bcdd682ed5195c9d051fd605cff5a2"
+    },
+    {
+      "path": "supabase/migrations/20261107060000_local_app_schema.sql",
+      "sha256": "a5cc1fee0c7bae2fb5400d2f0a34efcb7cd553260a791f81269aefc5f2cda4a3"
+    },
+    {
+      "path": "supabase/migrations/20261107060100_fix_local_booking_order.sql",
+      "sha256": "d7c911ffd39ae8f41dcd2e917110c3b2140b177626c2d8b6f8f4d5a5ef7b1ee6"
+    },
+    {
+      "path": "supabase/migrations/20261107060200_finish_local_inventory_hold.sql",
+      "sha256": "f946e8a03aa74bf7441848e3eb11c3b1cf529e560f99345c032fd7b2251ec30d"
+    },
+    {
+      "path": "supabase/migrations/20261107060300_allow_public_policy_helper.sql",
+      "sha256": "01c70f605925df63bf26d626ae939099bd7a9d010a948b1ec5e45d453087e801"
+    },
+    {
+      "path": "supabase/migrations/20261107060400_protect_submitted_payment_proofs.sql",
+      "sha256": "f6f1195e1fbe713d25d4f4dbfc254b94e5a5b1585be039d83ed087874752dca1"
+    },
+    {
+      "path": "supabase/migrations/20261107060500_show_payable_amount_and_early_proof.sql",
+      "sha256": "39ade07f32cd5e639850e184d56ef355c8a70f759173dff3c291b18c48eb4a64"
+    },
+    {
+      "path": "supabase/migrations/20261108070000_add_activity_and_shinema_catalog.sql",
+      "sha256": "0132bdf96344a2de3dc8c6ab6eb611b99f02f5c4d7093560ed8cf86983e33622"
+    },
+    {
+      "path": "supabase/migrations/20261108071000_add_experience_daily_capacity.sql",
+      "sha256": "762705c4244c13ea443efc91ae4cffb7e5381ade11f0a72cb1b27440b8531556"
+    },
+    {
+      "path": "supabase/migrations/20261108072000_add_experience_addons.sql",
+      "sha256": "c6dfaf2b3747ef6727b2873fd70f1ca8d063c4be1332ffa6f0e7f0480e5731bb"
+    },
+    {
+      "path": "supabase/migrations/20261108073000_seed_demo_wahana_shinema.sql",
+      "sha256": "d7e2f3ffb40be99b9cc2170cfe57892d04f1ad6f5428aefa6bb1962ac4c625f6"
+    },
+    {
+      "path": "supabase/migrations/20261108074000_experience_bundles_and_demo_addons.sql",
+      "sha256": "4b2b43645c4572ab324dc4b9985d8800e9ca8e40914a50839815aca557c6a9c3"
+    },
+    {
+      "path": "supabase/migrations/20261108075000_mark_seeded_experiences_as_demo.sql",
+      "sha256": "5e7448f9731f8f15ca208921f67cb8651055e9a92e1e221ae8ccdf49d9c47583"
+    },
+    {
+      "path": "supabase/migrations/20261108080000_add_admin_booking_calendar.sql",
+      "sha256": "8f1fdfa44102f6556a796f2b786d37c745927145b3a7e127d46c699627708e8d"
+    },
+    {
+      "path": "supabase/migrations/20261108090000_admin_customer_booking_operations.sql",
+      "sha256": "9a192a71270dd7b4709ccdc4a8c750ca191b29fdfbb3ece76c4f56bd31a5bc14"
+    },
+    {
+      "path": "supabase/migrations/20261108100000_custom_trip_inquiry_settings.sql",
+      "sha256": "4bf170fffd964cc964dc728b43d358b18bfd110460219000b53dc80546292ebb"
+    },
+    {
+      "path": "supabase/migrations/20261108110000_custom_trip_participants_documentation.sql",
+      "sha256": "46697e1fbcce3405593625b675777c17225f589b403bf43452799198b51e4a3f"
+    },
+    {
+      "path": "supabase/migrations/20261108120000_add_site_icon_settings.sql",
+      "sha256": "ac6e411cc4758060efe3468b9be7d852682d65ccad8b9d1bfcbf66793846a740"
+    },
+    {
+      "path": "supabase/migrations/20261108121000_expand_site_icon_slots.sql",
+      "sha256": "e9e3772001b1ae39edc9e146a8b3f30b0be668c455f7e8716d305b27ec7864a1"
+    },
+    {
+      "path": "supabase/migrations/20261108130000_smart_booking_inventory_engine.sql",
+      "sha256": "f919d0bd54cc02f1350660ce5e8b9a8d906f323172ba46b4c25e26cf87a3c3ed"
+    },
+    {
+      "path": "supabase/migrations/20261108131000_guard_cancelled_booking_payment_review.sql",
+      "sha256": "67677693d2a295d61bd7bc0e8c5062cf0de1a7190eeccd46a271628944413c96"
+    },
+    {
+      "path": "supabase/migrations/20261108132000_fix_inventory_delete_reconciliation.sql",
+      "sha256": "0528cf5eb4300cf416be4e57d409a239d5aabca5ec54e9831859acbf43a13465"
+    },
+    {
+      "path": "supabase/migrations/20261108133000_clean_inventory_reconciliation_loop.sql",
+      "sha256": "1a0156d35ca54646bb012bb8c57404c1eae0aebd1b7b09ee788cba607461da37"
+    },
+    {
+      "path": "supabase/migrations/20261108134000_qualify_inventory_departure_query.sql",
+      "sha256": "25bb69765c7d28e72e8df3763ceb1551a7e49517f0ee37a8466511adac52de35"
+    },
+    {
+      "path": "supabase/migrations/20261108140000_add_home_hero_settings.sql",
+      "sha256": "7b671e3110ce0cbc429e5bf996a2fa046dc2ac8d6e24abf11632f3b038b24b3e"
+    },
+    {
+      "path": "supabase/migrations/20261108150000_add_rental_catalog_and_category_adapters.sql",
+      "sha256": "7af9f8b081cf6b772034dc18c1408a98ffc7054e8a828608a137563186b45615"
+    },
+    {
+      "path": "supabase/migrations/20261108160000_expand_editable_site_icon_slots.sql",
+      "sha256": "b3b12130f36a0f67fb7cce66ad6453f9e91ddf5c1f8b4aba9cc43a4804bca739"
+    },
+    {
+      "path": "supabase/migrations/20261108170000_retire_legacy_public_tables.sql",
+      "sha256": "cec64f1456e67c93a95fbafb5b45162603341f1df2a65750ae817d4fcbc2fabf"
+    },
+    {
+      "path": "supabase/migrations/20261109180000_demo_payment_safety.sql",
+      "sha256": "bb2d8ce566218353eb967f2e737e565c2167b899cae826ab26bf0b1dee7b68ec"
+    },
+    {
+      "path": "supabase/migrations/20261109180100_sisai_import_studio_v1.sql",
+      "sha256": "df45cc229c48202a18bf7273b10342db564515a9c199ec3906bd0cd2abf91578"
+    },
+    {
+      "path": "supabase/migrations/20261109190000_finance_cost_profit_analytics_v1.sql",
+      "sha256": "19d89b6179df4cb8eaec4f430bab88c5b828e683bd678689765e52fca233e053"
+    },
+    {
+      "path": "supabase/migrations/20261109191000_finance_cost_profit_v1_reconciliation.sql",
+      "sha256": "7e11e38233bcbbc9d4c4e3850f1cb183f48cdb4392ac24a0f7383f7aaa34379e"
+    },
+    {
+      "path": "supabase/migrations/20261109192000_finance_transaction_numeric_alias_fix.sql",
+      "sha256": "064fd2a7ec4c8ce2e6a60efd1e16ed5c2c4c90870a2e2f4aea35f215e06ddd36"
+    },
+    {
+      "path": "supabase/migrations/20261109193000_finance_hourly_cost_basis_support.sql",
+      "sha256": "66809f4630b1ed5486bcb9442c58daf297021f718f7a7162129694655c4ea0e2"
+    },
+    {
+      "path": "supabase/migrations/20261109194000_finance_expense_controls_and_recognition_date.sql",
+      "sha256": "db9a54c2f0eb4f9576995640ce7d914c533560f400c8cbc4a2a5346f3b24d7fc"
+    },
+    {
+      "path": "supabase/migrations/20261110000000_finance_receivable_refund_semantics.sql",
+      "sha256": "b2a106dcd8ff585aa8bcfb8d6c7f93a5cc65123b84fc4cf9bf7f8476b85ffd9b"
+    },
+    {
+      "path": "supabase/migrations/20261110001000_finance_service_profit_allocation.sql",
+      "sha256": "738b1a5797ecabe2388b03ae159c8091d5e327c467671662dfabca1bc3a31efb"
+    },
+    {
+      "path": "supabase/migrations/20261110002000_finance_service_scoped_expenses.sql",
+      "sha256": "f4ab1f94c10c23c5295215e383899968e259f9f2d9a35a269109057cfbe71c30"
+    },
+    {
+      "path": "supabase/migrations/20261110023701_shiap_experience_platform_v1.sql",
+      "sha256": "5b6f85e36b4c9d7f738fe72bd4deff00a3addc75f3987b7a1599b31556d45682"
+    },
+    {
+      "path": "supabase/migrations/20261110030000_fix_sisai_publish_gallery_default.sql",
+      "sha256": "2e7e8cfa3d83bdb779c0e6cca25e6d03c7b16e2265004b8d9b53113e7c4246b3"
+    },
+    {
+      "path": "supabase/migrations/20261113090000_full_payment_manual_bank_transfer.sql",
+      "sha256": "6919aff3bea945638f4af87a840b61b1f0cdb6379b43e2fa15cd3ef3e19e4331"
+    },
+    {
+      "path": "supabase/migrations/20261117124640_user_experience_v3.sql",
+      "sha256": "bb5869be62fc884f632d8f575fc9a8ff64e7221372fb4d8ab7afaa81bf9131ec"
+    },
+    {
+      "path": "supabase/migrations/20261118010758_booking_payment_experience_v2.sql",
+      "sha256": "47d2b1617a331ffa93d853be2c9a854f95bc0037a8d2f6f3b193571e6d6e0236"
+    },
+    {
+      "path": "supabase/migrations/20261118063553_service_fee_management_v1.sql",
+      "sha256": "e2759c40a38a5ec128c5e71530a62d2dbbd2184d24b9f240ebc72c0f2b0a2bd0"
+    },
+    {
+      "path": "supabase/migrations/20261118065410_notification_center_v1.sql",
+      "sha256": "0cf482399a7e5d949143f86d3895c088c5c0d15c0dfc002bfadd2dd74723a24f"
+    },
+    {
+      "path": "supabase/migrations/20261118070000_admin_operations_upgrade_v1.sql",
+      "sha256": "88c36279e3e941891a78e8be24467e043e8699a3eb499e6071a2b36d1279ba5e"
+    },
+    {
+      "path": "supabase/migrations/20261118070001_admin_operations_schedule_write_lockdown.sql",
+      "sha256": "66727b41035f32f4be5e8e11559dcda2c2cd7aed63a1e2fc0dbb6be6973cfd89"
+    },
+    {
+      "path": "supabase/migrations/20261118085558_shiap_eticket_v1.sql",
+      "sha256": "947314a49591360af11953879b898980f2352ff5cceaab5bffb2e2b72ad4d4e7"
+    },
+    {
+      "path": "supabase/migrations/20261119100000_places_directory_v1.sql",
+      "sha256": "80f21d6c632ca1d30f95b55ef0114b2f2311abdaf2a5b5ade5a3ee5f8c307f8e"
+    },
+    {
+      "path": "supabase/seed.sql",
+      "sha256": "3edd30d89553dc101d2ee95867b56e4fae9e18323c553f3605479710db80e86e"
+    },
+    {
+      "path": "supabase/seeds/shiap_experience_demo_v1.sql",
+      "sha256": "b34418338e08b24c2845e789d2c25642133f4dea25289dc0188688258a49886a"
+    },
+    {
+      "path": "supabase/snippets/Untitled query 639.sql",
+      "sha256": "016ca7fbcdf4a6c4cde7b13442d4d4b0fa5a0a9113b8aa6f44ed8b8d5ce2609d"
+    },
+    {
+      "path": "supabase/tests/experience_v1_local_smoke.sql",
+      "sha256": "469840496c115367763edc51343eb282dd2ed71ef33b01dc50c91630b128238f"
+    },
+    {
+      "path": "supabase/tests/finance_cost_profit_smoke.sql",
+      "sha256": "c85e9654686524f6b3c28d140d11fa598ba49c8be1c1d52cc6f7dd0afd76a531"
+    },
+    {
+      "path": "supabase/tests/guest_checkout_smoke.sql",
+      "sha256": "1a03ef21123a77f4f61933202ab220d541844eb781143e2fd4a71790bfc61d5a"
+    },
+    {
+      "path": "supabase/tests/local_booking_smoke.sql",
+      "sha256": "e6cda7510ea42e39db7433c0c2b995775fca050b95dcbe44f9503e5340bdb0bf"
+    },
+    {
+      "path": "supabase/tests/local_rls_smoke.sql",
+      "sha256": "14cbe31b7b78829542576958b70758cff281e7a150e539766a93d1b54cf73b97"
+    },
+    {
+      "path": "supabase/tests/notifications_smoke.sql",
+      "sha256": "b7203aa1e9400505e73c4e2f544665e3b8595fdbb77868ab178c12e397553e9b"
+    },
+    {
+      "path": "supabase/tests/places_v1_smoke.sql",
+      "sha256": "dd1c5f61036cbb71ab5703af28bef162ce22741bac903d2e74bf756be70dec94"
+    },
+    {
+      "path": "supabase/tests/service_fee_smoke.sql",
+      "sha256": "fbd7f8fe5dac3ae7bb8e17546461468c4c67a4d28767a12437d18571775f4049"
+    },
+    {
+      "path": "supabase/tests/sisai_publish_smoke.sql",
+      "sha256": "37aaf90fae3c151ef00d532f07e974b78a7330ee4e407ce72656c73a410a6a33"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "1477b4aeb493c1eaf867377bec34184691100e88e2d71d6465d31c18b0469c09"
+    }
+  ]
+}
