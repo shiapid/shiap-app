@@ -4,6 +4,8 @@ param(
   # rehearses SFTP/rollback in an isolated directory, and leaves the live app alone.
   [switch]$Deploy,
   [switch]$FastRelease,
+  # Allow a phased release only when remote pending migrations match this exact reviewed set.
+  [string[]]$ExpectedPendingMigrations = @(),
   # Live bank-transfer checkout is opt-in and only included in a deployed release.
   [switch]$EnableLivePayments
 )
@@ -343,13 +345,29 @@ if ($FastRelease) {
 
 if ($Deploy -or $FastRelease) {
   $preview = Invoke-SupabaseMigrationPreview
-  if ($preview.upToDate -ne $true -or $preview.dryRun -ne $true -or
+  $expectedPending = @($ExpectedPendingMigrations | Sort-Object -Unique)
+  $actualPending = @($preview.migrations | Sort-Object -Unique)
+  foreach ($migration in $expectedPending) {
+    if ($migration -notmatch '^20\d{12}_[a-z0-9_]+\.sql$') { throw 'ExpectedPendingMigrations must contain exact timestamped migration filenames.' }
+  }
+  if ($expectedPending.Count -gt 0 -and -not $FastRelease) {
+    throw 'ExpectedPendingMigrations is allowed only for Fast Release.'
+  }
+  $pendingMatches = if ($expectedPending.Count -eq 0) {
+    $actualPending.Count -eq 0
+  } else {
+    $difference = @(Compare-Object -ReferenceObject $expectedPending -DifferenceObject $actualPending -CaseSensitive)
+    $difference.Count -eq 0
+  }
+  $migrationStateMatches = if ($expectedPending.Count -eq 0) { $preview.upToDate -eq $true } else { $preview.upToDate -eq $false }
+  if (-not $migrationStateMatches -or -not $pendingMatches -or $preview.dryRun -ne $true -or
       $preview.target.project_ref -ne $ProjectRef -or
-      $null -eq $preview.migrations -or @($preview.migrations).Count -ne 0 -or
+      $null -eq $preview.migrations -or
       $null -eq $preview.seeds -or @($preview.seeds).Count -ne 0 -or
       $null -eq $preview.roles -or @($preview.roles).Count -ne 0) {
     throw 'Review the pending SQL and compatibility, prepare a recoverable database backup, and obtain explicit approval before applying migrations. Application rollback does not revert database changes.'
   }
+  Write-Host "MIGRATION_PREVIEW_MATCHED pending=$($actualPending.Count) target=$ProjectRef"
 }
 
 # Verify SSH agent and host login before spending time on the Linux build.

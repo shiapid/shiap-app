@@ -1,12 +1,16 @@
 {
   "product": "SHIAP Unified V1 release candidate",
-  "generatedAt": "2026-11-18T19:21:49.741Z",
+  "generatedAt": "2026-11-18T19:44:35.283Z",
   "sourceStatus": "Reconstructed production-compatible baseline; not the original production TypeScript commit.",
   "baseCommit": "c8fb3dcc0a47e107cb8ac20637b9c582cb8ec141",
   "featureCommits": [
     "279fb61328211c9a8e52c7501789149c12a295d3",
     "7bc7c1e9c4178f7219e482ea218943bf7ce3e199",
     "dd9abedff5eb82386a0343e2ada4261fdb99cdf5"
+  ],
+  "integrationCommitBeforeManifest": "14e0ca4aa3294108639c6f3d9b0b01b0b24543eb",
+  "integratedReleaseTooling": [
+    "Exact migration allowlist gate for staged Fast Release; empty by default means zero pending migrations required."
   ],
   "modules": [
     "Admin Operations V1",
@@ -20,6 +24,7 @@
     "20261119100000_places_directory_v1.sql"
   ],
   "historicalETicketBackfill": "Not included; migration creates tickets only on future verified paid transitions.",
+  "manifestExcludesSelf": true,
   "fileCount": 309,
   "files": [
     {
@@ -224,7 +229,7 @@
     },
     {
       "path": "scripts/deploy-cpanel-production.ps1",
-      "sha256": "40ea27711ce89a0d7033232ef1ef27da7e2441c14dab906598805e937d57fc6b"
+      "sha256": "57d1498e846fe33f9c9f768288c02c2e09be1a4da3a44a6c751ea31c9ee8fc01"
     },
     {
       "path": "scripts/deploy-cpanel-staging.ps1",
