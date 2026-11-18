@@ -10,6 +10,7 @@ import { bookingItemCategory } from "@/lib/admin/booking-category";
 import { confirmCheckoutNavigation } from "@/lib/checkout-client";
 import ServiceCategoryIcon from "@/components/booking/service-category-icon";
 import PaymentProofUpload from "@/components/customer/payment-proof-upload";
+import TicketVouchers from "@/components/customer/ticket-vouchers";
 
 const demo = process.env.NEXT_PUBLIC_SHIAP_DEMO_MODE === "true";
 
@@ -150,6 +151,7 @@ export default function BookingDetailClient({ id }: { id: string }) {
         {order.customer_email && <p className="break-all text-sm text-slate-700">{order.customer_email}</p>}
         {order.customer_notes && <p className="mt-1 break-words text-sm text-slate-600">{order.customer_notes}</p>}
       </section>
+      {order.payment_status === "paid" && !["cancelled", "expired", "rejected"].includes(order.order_status) && <TicketVouchers bookingId={id}/>}
       {detail.guest && <section className="rounded-xl bg-blue-50 p-3 text-sm text-[#0A2E63]">
         <p>Akses pesanan tamu tersimpan di browser ini selama maksimal 30 hari. Untuk perangkat lain, hubungi bantuan SHIAP dengan kode pesanan. Tim akan memeriksa kepemilikan.</p>
         {detail.canClaim ? <button type="button" disabled={busy} onClick={() => void action("claim")} className="mt-1 min-h-11 font-bold">Simpan pesanan ke akun saya</button> : <Link href={"/login?next=" + encodeURIComponent("/my-booking/" + id)} className="mt-1 inline-flex min-h-11 items-center font-bold">Masuk untuk menyimpan pesanan ke akun</Link>}

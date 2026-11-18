@@ -3,6 +3,7 @@
 import HomeHeroSettingsForm from "@/components/admin/home-hero-settings-form";
 import ServiceFeeSettingsForm from "@/components/admin/service-fee-settings-form";
 import NotificationSettingsForm from "@/components/admin/notification-settings-form";
+import BusinessContactSettingsForm from "@/components/admin/business-contact-settings-form";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,10 @@ export default function AdminSettingsPage() {
       <section className="pt-6">
         <h2 className="mb-3 text-lg font-extrabold text-[#0A2E63]">Pengaturan Notifikasi</h2>
         <NotificationSettingsForm />
+      </section>
+      <section className="pt-6">
+        <h2 className="mb-3 text-lg font-extrabold text-[#0A2E63]">SHIAP Business Contact Settings</h2>
+        <BusinessContactSettingsForm />
       </section>
     </div>
   );
