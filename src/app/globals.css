@@ -210,3 +210,8 @@
 }
 
 
+
+@keyframes destination-sheet-in {
+  from { opacity: 0; translate: 0 .5rem; }
+  to { opacity: 1; translate: 0 0; }
+}

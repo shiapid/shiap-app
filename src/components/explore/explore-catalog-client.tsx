@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ChevronDown, ImageIcon, MapPin, Search, X } from "lucide-react";
+import { ImageIcon, MapPin, Search } from "lucide-react";
 import { catalogDestinations, matchesSearch } from "@/lib/explore-destinations";
 import ServiceCategoryIcon from "@/components/booking/service-category-icon";
 import { formatRupiah } from "@/lib/booking-engine";
+
+import { DestinationPicker } from "@/components/shared/destination-picker";
 
 const categories = { all: "Semua", trip: "Trip", stay: "Stay", experience: "Experience", rental: "Rental", shinema: "Shinema" };
 type Category = keyof typeof categories;
@@ -29,8 +31,6 @@ export default function ExploreCatalogClient({ initialQuery, items, loadError }:
   const [query, setQuery] = useState(initialQuery);
   const [destination, setDestination] = useState("");
   const [category, setCategory] = useState<Category>("all");
-  const [destinationQuery, setDestinationQuery] = useState("");
-  const picker = useRef<HTMLDialogElement>(null);
 
   const catalog = useMemo(() => {
     const resolve = catalogDestinations(items.map((item) => item.location));
@@ -53,12 +53,7 @@ export default function ExploreCatalogClient({ initialQuery, items, loadError }:
     if ((category === "all" || item.category === category) && matchesSearch(item.terms, query)) record.count += 1;
     places.set(place.id, record);
   }
-  const choices = [...places.values()].filter((place) => matchesSearch(place.label, destinationQuery) || place.terms.some((terms) => matchesSearch(terms, destinationQuery)))
-    .sort((a, b) => a.label.localeCompare(b.label, "id"));
-  const selectDestination = (id: string) => {
-    setDestination(id);
-    picker.current?.close();
-  };
+  const choices = [...places.values()].sort((a, b) => a.label.localeCompare(b.label, "id"));
 
   return <main className="min-w-0 bg-[#F7F9FC] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8">
     <div className="mx-auto max-w-6xl space-y-2.5 px-3 pt-3 sm:px-6 sm:pt-5">
@@ -68,10 +63,8 @@ export default function ExploreCatalogClient({ initialQuery, items, loadError }:
           <Search aria-hidden size={18} className="shrink-0 text-[#1265D8]" />
           <input type="search" aria-label="Cari katalog" placeholder="Cari destinasi atau layanan" value={query} onChange={(event) => setQuery(event.target.value)} className="w-full min-w-0 bg-transparent py-2 text-base text-[#0A2E63] outline-none placeholder:text-slate-500 sm:text-sm" />
         </label>
-        <button type="button" aria-haspopup="dialog" onClick={() => { setDestinationQuery(""); picker.current?.showModal(); }} className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 text-left text-sm font-semibold text-[#0A2E63] focus-visible:outline-[#1265D8]">
-          <MapPin aria-hidden size={17} className="shrink-0 text-[#1265D8]" />
-          <span className="min-w-0 flex-1 truncate">{places.get(destination)?.label ?? "Semua destinasi"}</span><ChevronDown aria-hidden size={16} className="shrink-0" />
-        </button>
+        <DestinationPicker choices={choices.map(place => ({ ...place, count: loadError ? undefined : place.count }))} value={destination} onChange={setDestination} allCount={loadError ? undefined : searchResults.filter(item => category === "all" || item.category === category).length} placeholder="Cari tempat, kota, atau produk"/>
+
       </div>
       <div role="group" aria-label="Kategori layanan" className="flex flex-wrap gap-1.5">
         {(Object.keys(categories) as Category[]).map((key) => {
@@ -105,31 +98,7 @@ export default function ExploreCatalogClient({ initialQuery, items, loadError }:
         {(query || destination || category !== "all") && <button type="button" onClick={() => { setQuery(""); setDestination(""); setCategory("all"); }} className="mt-1 min-h-11 text-sm font-semibold text-[#1265D8]">Atur ulang filter</button>}
       </div>}
 
-      <dialog ref={picker} aria-labelledby="destination-title" className="fixed inset-x-0 bottom-0 top-auto m-0 mx-auto w-full max-w-lg rounded-t-2xl bg-white p-0 text-[#0A2E63] shadow-xl backdrop:bg-[#0A2E63]/45 sm:inset-0 sm:m-auto sm:w-[calc(100%-2rem)] sm:rounded-2xl" onClick={(event) => { if (event.target === event.currentTarget) picker.current?.close(); }}>
-        <div className="flex max-h-[min(70dvh,32rem)] flex-col p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:p-4">
-          <div className="flex items-center justify-between">
-            <h2 id="destination-title" className="font-bold">Pilih destinasi</h2>
-            <button type="button" aria-label="Tutup pemilih destinasi" onClick={() => picker.current?.close()} className="grid size-11 place-items-center rounded-full hover:bg-slate-100"><X aria-hidden size={18} /></button>
-          </div>
-          <label className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-[#1265D8]">
-            <Search aria-hidden size={16} className="shrink-0 text-[#1265D8]" />
-            <input type="search" aria-label="Cari destinasi" value={destinationQuery} onChange={(event) => setDestinationQuery(event.target.value)} placeholder="Cari tempat, kota, atau produk" className="w-full min-w-0 text-base outline-none sm:text-sm" />
-          </label>
-          <div className="mt-2 min-h-0 overflow-y-auto overscroll-contain">
-            <DestinationChoice label="Semua destinasi" selected={!destination} count={loadError ? undefined : searchResults.filter((item) => category === "all" || item.category === category).length} onClick={() => selectDestination("")} />
-            {choices.map((place) => <DestinationChoice key={place.id} label={place.label} count={loadError ? undefined : place.count} selected={destination === place.id} onClick={() => selectDestination(place.id)} />)}
-            {!choices.length && <p className="px-2 py-3 text-sm text-slate-600">Destinasi tidak ditemukan.</p>}
-          </div>
-        </div>
-      </dialog>
+
     </div>
   </main>;
-}
-
-function DestinationChoice({ label, count, selected, onClick }: { label: string; count?: number; selected: boolean; onClick: () => void }) {
-  return <button type="button" onClick={onClick} aria-pressed={selected} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-blue-50 focus-visible:outline-[#1265D8]">
-    <span className="min-w-0 flex-1 break-words">{label}</span>
-    {count !== undefined && <span className="shrink-0 text-xs text-slate-500">{count} produk</span>}
-    {selected ? <Check aria-hidden size={16} className="shrink-0 text-[#1265D8]" /> : <span aria-hidden className="w-4 shrink-0" />}
-  </button>;
 }

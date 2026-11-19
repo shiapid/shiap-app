@@ -1,0 +1,13 @@
+# Unified destination picker V1
+
+Baseline: production shiap-20261119-210828-4705aaa5, source 8ac6597b7379ee68e29562d3293f41ae0067a7d5. Focused release branch release/shiap-unified-destination-picker-v1.
+
+Explore's embedded destination dialog was extracted into src/components/shared/destination-picker.tsx. Both Explore and Places use that component; there is no native destination select on Places. Mobile below 768px uses a safe-area bottom sheet; desktop uses a compact centered dialog. Shared behavior includes search, selected checkmark/aria-pressed, native modal focus containment/return, Escape, backdrop, close animation with reduced-motion preference, scroll-lock cleanup and visualViewport resizing. Enter inside picker search never submits the parent property form.
+
+Places still reads places_public_destinations_v from canonical Master Destinasi. Counts include only eligible verified/published non-demo properties, never Explore products. Populated destinations sort first; valid zero-count destinations remain searchable. Canonical slugs preserve URLs; stable IDs deduplicate source records. Existing archived destinations with published properties remain available under the unchanged public projection. Search terms and unrelated query parameters survive selection; pagination resets; reload/Back restore controls. Explore retains product/category counts and product/geographic search.
+
+No schema, booking, Finance, bank, Premium, verification or lead API changes. Existing contact popup remains on demand.
+
+Validation: production-mode local build/TypeScript PASS; 45 units PASS; ESLint no errors (existing YouTube img warning). Synthetic local shared-picker browser PASS at 320/375/390/430/768/1024/1280: actual canonical counts, property/product metric distinction, search/selection, focus, Escape/backdrop, scroll cleanup, query/history/reload and keyboard-sized viewport. Existing local contact regression covers lead persistence, failed-save fallback, WhatsApp handoff interception, request idempotency and Admin privacy. Local HTTP integration uses supported CI mode: staging/production correctly rejects HTTP writes under its secure-origin guard; no application authorization was weakened. Real-device mobile keyboard behavior is not claimed; viewport/focus was verified in Chrome.
+
+Release uses existing Linux Node24 Passenger/Sharp packaging, runtime backup/atomic switch/rollback and Live Bank Transfer. No Cloud migrations required. Hold existing schedule-write lockdown 20261118070001. Production verification is read-only: no customer leads, bookings, payments or external WhatsApp messages created for testing. Actual deployment ID/checksum/health evidence is recorded privately after deployment.

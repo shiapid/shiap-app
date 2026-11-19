@@ -22,7 +22,7 @@ export function PlacesDirectory({ page, total, template, destinations, listings,
   return <main className="min-h-dvh bg-[#F7F9FC] pb-[calc(6rem+env(safe-area-inset-bottom))] text-[#0A2E63]">
     <header className="mx-auto max-w-6xl px-4 pb-0 pt-4 sm:px-8"><h1 className="text-xl font-extrabold">Places</h1><p className="mt-1 text-xs text-slate-500">Temukan penginapan berdasarkan destinasi wisata.</p></header>
     <section className="mx-auto max-w-6xl px-4 pb-6 pt-3 sm:px-8">
-      <PlacesDirectorySearch query={query} destinationSlug={destinationSlug} destinations={destinations}/>
+      <PlacesDirectorySearch query={query} destinationSlug={destinationSlug} destinations={destinations} loadError={loadError}/>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
         <div><h2 className="text-base font-extrabold">{currentDestination ? currentDestination.name : "Penginapan terverifikasi"}</h2></div>
         <p className="text-xs text-slate-500">{total} properti</p>
