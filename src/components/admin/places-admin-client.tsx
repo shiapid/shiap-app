@@ -21,6 +21,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [verificationTime] = useState(Date.now);
   const [message, setMessage] = useState("");
   const [destination, setDestination] = useState({ name: "", city: "", province: "" });
   const [property, setProperty] = useState({ name: "", destination_id: "", whatsapp_phone: "" });
@@ -34,7 +35,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   }
 
   function propertyRow(item: Property, hasProfile: boolean) {
-    const verified = Boolean(item.contact_verified_at && (!item.contact_verification_expires_at || new Date(item.contact_verification_expires_at).getTime() > Date.now()));
+    const verified = Boolean(item.contact_verified_at && (!item.contact_verification_expires_at || new Date(item.contact_verification_expires_at).getTime() > verificationTime));
     const destinationName = destinations.find(d=>d.id===item.destination_id)?.name || "—";
     const closeMenu = (event: React.MouseEvent<HTMLButtonElement>) => event.currentTarget.closest("details")?.removeAttribute("open");
     return <div className="relative flex min-h-16 items-center gap-2 px-3 py-2">
