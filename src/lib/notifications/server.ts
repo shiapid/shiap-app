@@ -1,3 +1,4 @@
+import { placesBillingEmail } from "@/lib/places/billing-notifications";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { requireAdmin } from "@/lib/admin/guard";
@@ -76,12 +77,12 @@ export async function dispatchNotifications() {
   for (const job of jobs.data || []) {
     let smtpStarted=false;
     try {
-      const {data:event,error:eventError} = await admin.from("notification_events").select("booking_id,booking_item_id,event_type").eq("id",job.event_id).single();
+      const {data:event,error:eventError} = await admin.from("notification_events").select("booking_id,booking_item_id,event_type,places_invoice_id,places_subscription_id").eq("id",job.event_id).single();
       if (eventError || !event) throw new Error("EVENT_READ_FAILURE");
       let message = job.message as EmailMessage | null;
       if (!message) {
-        const context = await bookingMessageContext(event.booking_id,event.booking_item_id);
-        message = { ...renderEmail(event.event_type,context,job.audience),from:settings.sender_name + " <" + provider.sender + ">",to:[job.recipient] };
+        const rendered = event.event_type.startsWith("places_") ? await placesBillingEmail(event) : renderEmail(event.event_type,await bookingMessageContext(event.booking_id,event.booking_item_id),job.audience);
+        message = { ...rendered,from:settings.sender_name + " <" + provider.sender + ">",to:[job.recipient] };
         const saved = await admin.from("notification_deliveries").update({message}).eq("id",job.id).eq("lease_id",lease).eq("state","processing").select("id").maybeSingle();
         if (saved.error || !saved.data) throw new Error("MESSAGE_SAVE_FAILURE");
       }

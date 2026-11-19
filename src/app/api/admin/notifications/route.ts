@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const type = new URL(request.url).searchParams.get("type") || "";
     if (type && !(type in notificationLabels)) throw new BookingError("Jenis notifikasi tidak valid.");
-    let query = client.from("notification_events").select("id,booking_id,event_type,priority,created_at,booking_orders(order_number),notification_reads(admin_id),notification_deliveries!inner(channel)").eq("notification_deliveries.channel","admin").order("created_at",{ascending:false}).limit(100);
+    let query = client.from("notification_events").select("id,booking_id,places_invoice_id,places_subscription_id,event_type,priority,created_at,booking_orders(order_number),notification_reads(admin_id),notification_deliveries!inner(channel)").eq("notification_deliveries.channel","admin").order("created_at",{ascending:false}).limit(100);
     if (type) query = query.eq("event_type",type);
     const [events, unread, failures] = await Promise.all([
       query,

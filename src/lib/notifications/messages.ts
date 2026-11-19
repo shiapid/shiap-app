@@ -1,4 +1,6 @@
+import { placesNotificationLabels } from "../places/billing-messages.ts";
 export const notificationLabels: Record<string, string> = {
+  ...placesNotificationLabels,
   booking_created: "Booking baru", payment_reminder: "Pengingat pembayaran", proof_received: "Bukti baru · menunggu verifikasi",
   payment_verified: "Pembayaran diverifikasi", payment_rejected: "Pembayaran perlu tindakan", booking_cancelled: "Booking dibatalkan",
   booking_expired: "Booking kedaluwarsa", travel_reminder: "Pengingat perjalanan / check-in", approval_required: "Perlu persetujuan Admin",

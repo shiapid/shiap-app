@@ -1,3 +1,4 @@
+import { PlacesPlatformRevenue } from "@/components/admin/places-platform-revenue";
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, BadgeDollarSign, Banknote, FileDown, Landmark, ReceiptText, Wallet } from "lucide-react";
@@ -172,6 +173,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   const csvQuery = new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}), ...(validService ? { service: validService } : {}), ...(status ? { status } : {}), ...(payment ? { payment } : {}) }).toString();
 
   return <div className="space-y-6">
+    <PlacesPlatformRevenue from={from} to={to} />
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-extrabold tracking-[.22em] text-[#1974FF]">ADMIN / FINANCE</p><h1 className="mt-1 text-2xl font-extrabold text-[#0A2E63]">Finance & Profit Analytics</h1><p className="mt-1 max-w-2xl text-sm text-slate-500">Pisahkan nilai booking, pendapatan terealisasi, kas masuk, piutang, estimasi biaya, dan biaya aktual.</p></div><Link href={`/api/admin/finance/export${csvQuery ? `?${csvQuery}` : ""}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white hover:bg-[#123e78]"><FileDown size={15}/>Export laporan CSV</Link></header>
 
     {queryError || recognizedResult.error || serviceItemsResult.error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><strong>Laporan keuangan tidak lengkap.</strong> Schema Finance lokal perlu diterapkan dan cache API diperbarui. {queryError?.message ?? recognizedResult.error?.message ?? serviceItemsResult.error?.message}</div> : null}
