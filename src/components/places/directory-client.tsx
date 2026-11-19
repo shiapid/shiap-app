@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Building2, MapPin, Search } from "lucide-react";
+import { PlacesDirectorySearch } from "./directory-search";
+import { ArrowRight, BadgeCheck, Building2, MapPin } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/places/utils";
 import { type PlacesDestination, type PlacesListing } from "@/lib/places/types";
 import { PlacesWhatsAppLink } from "@/components/places/whatsapp-link";
@@ -19,21 +20,11 @@ export function PlacesDirectory({ page, total, template, destinations, listings,
 }) {
   const currentDestination = destinations.find((destination) => destination.slug === destinationSlug);
   return <main className="min-h-dvh bg-[#F7F9FC] pb-[calc(6rem+env(safe-area-inset-bottom))] text-[#0A2E63]">
-    <header className="mx-auto max-w-6xl px-4 pb-1 pt-6 sm:px-8"><h1 className="text-2xl font-extrabold">Places</h1><p className="mt-1 text-sm text-slate-500">Temukan penginapan berdasarkan destinasi wisata.</p></header>
-    <section className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">
-      <form action="/places" method="get" className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[1fr_minmax(190px,.62fr)_auto] sm:items-end sm:p-4">
-        <label className="block text-xs font-bold text-slate-600">Cari properti atau lokasi
-          <span className="mt-1.5 flex h-12 items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-[#1265D8] focus-within:ring-2 focus-within:ring-blue-100"><Search size={17} className="shrink-0 text-[#1265D8]"/><input name="q" defaultValue={query} maxLength={80} placeholder="Cari villa, homestay, lokasi..." className="min-w-0 flex-1 bg-transparent text-sm text-[#0A2E63] outline-none placeholder:text-slate-400"/></span>
-        </label>
-        <label className="block text-xs font-bold text-slate-600">Destinasi
-          <select name="destination" defaultValue={destinationSlug} className="mt-1.5 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#0A2E63] outline-none focus:border-[#1265D8] focus:ring-2 focus:ring-blue-100">
-            <option value="">Semua lokasi</option>{destinations.map((item) => <option key={item.id} value={item.slug}>{item.name} ({item.listing_count})</option>)}
-          </select>
-        </label>
-        <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#1265D8] px-5 text-sm font-bold text-white hover:bg-[#0A2E63] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1265D8]">Cari penginapan <Search size={16}/></button>
-      </form>
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-2">
-        <div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#1265D8]">Direktori Places</p><h2 className="mt-1 text-xl font-extrabold">{currentDestination ? currentDestination.name : "Penginapan terverifikasi"}</h2></div>
+    <header className="mx-auto max-w-6xl px-4 pb-0 pt-4 sm:px-8"><h1 className="text-xl font-extrabold">Places</h1><p className="mt-1 text-xs text-slate-500">Temukan penginapan berdasarkan destinasi wisata.</p></header>
+    <section className="mx-auto max-w-6xl px-4 pb-6 pt-3 sm:px-8">
+      <PlacesDirectorySearch query={query} destinationSlug={destinationSlug} destinations={destinations}/>
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
+        <div><h2 className="text-base font-extrabold">{currentDestination ? currentDestination.name : "Penginapan terverifikasi"}</h2></div>
         <p className="text-xs text-slate-500">{total} properti</p>
       </div>
       {loadError ? <div role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Direktori sedang disiapkan. Silakan coba lagi beberapa saat lagi.</div> : listings.length ? <div className="mt-4 space-y-2">{listings.map((item) => <PropertyCard item={item} key={item.id} template={template}/>)}</div> : <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">

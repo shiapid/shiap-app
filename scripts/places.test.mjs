@@ -51,3 +51,14 @@ test('lead validation normalizes contacts and rejects spam, malformed input and 
  assert.equal(validatePlacesLead(body).phone,'628562130222');
  for(const change of [{name:''},{name:'x'.repeat(101)},{phone:'abc'},{privacyVersion:'old'},{propertyId:'bad'},{requestId:'bad'},{website:'spam'}]) assert.equal(validatePlacesLead({...body,...change}),null);
 });
+
+test("compact Places navigation combines filters, preserves unrelated parameters and resets pagination", async () => {
+  const { placesSearchHref } = await import("../src/lib/places/search-navigation.ts");
+  const href = placesSearchHref("?page=3&utm_source=home&q=old", "Villa & Stay", "pantai-tamiang");
+  const url = new URL(href, "https://app.shiap.id");
+  assert.equal(url.searchParams.get("q"), "Villa & Stay");
+  assert.equal(url.searchParams.get("destination"), "pantai-tamiang");
+  assert.equal(url.searchParams.get("utm_source"), "home");
+  assert.equal(url.searchParams.has("page"), false);
+  assert.equal(placesSearchHref("?q=old&destination=old&page=2", "", ""), "/places");
+});

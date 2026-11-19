@@ -60,7 +60,6 @@ export default function AppHeader() {
           />
         </Link>
         <div className="flex items-center gap-3">
-          <Link href="/places" className="hidden min-h-10 items-center rounded-lg px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1265D8] sm:inline-flex">Places</Link>
           <span className="hidden text-xs font-semibold tracking-wide text-slate-400 lg:block">
             TRAVEL · STAY · EXPERIENCE
           </span>
