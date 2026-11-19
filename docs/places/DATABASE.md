@@ -1,21 +1,16 @@
-# Places database foundation
+# Ecosystem database
 
-Migration: `20261119100000_places_directory_v1.sql` (forward-only, additive).
+Canonical existing masters remain `places_properties`, `places_destinations`, Stay catalogs and booking/Finance tables. No property/destination master is duplicated and no uncertain location mappings are made.
 
-## Tables
+Additive candidate migrations:
+1. `20261119091647_places_ecosystem_foundation_v1.sql`: profile draft/review metadata, approved publication snapshots, property entitlement periods, public visibility gate.
+2. `20261119094111_places_partner_platform_v1.sql`: verified property memberships, ownership claims, private audit and normalized media, shared transactional profile writer.
+3. `20261119102749_places_premium_billing_v1.sql`: configurable plans, trial eligibility, invoices, private proofs and immutable platform cash entries. Proposed prices unavailable/default billing disabled.
+4. `20261119104831_places_billing_notifications_v1.sql`: Places subjects/events appended to the actual deployed notification allowlist; wrappers preserve existing booking scheduling/eligibility and share the same outbox.
+5. `20261119105804_places_marketing_analytics_v1.sql`: private marketing events, tenant-authorized aggregate RPC, Admin erasure and 90-day retention using the same scheduler.
 
-- `places_destinations`: canonical Indonesian destination identifiers and aliases. The migration inserts only Teluk Tamiang, Pulau Kerayaan, and Pantai Gedambaan as destinations.
-- `places_properties`: public business contact, type, publication state, demo exclusion, verification expiry, and explicit optional Stay mapping.
-- `places_property_profiles`: optional public profile fields, room summaries, facilities, policies, and integer IDR starting price.
-- `places_property_verifications`: admin-only verification method, notes, private evidence path, verifier, and expiry.
-- `places_admin_audit_logs`: admin-only record of property/profile/plan and destination writes.
-- `places_plan_settings`: configurable pilot price/status/unit limit; Premium defaults to disabled and price status defaults to proposed.
-- `places_wa_click_events`: property, opaque referral code, and timestamp only; no visitor phone, IP address, or message contents.
+No row backfills, historical tickets, subscription grants, PAID changes or external email activation. Foreign keys restrict removal of commercial records. RLS and explicit grants apply to every new table/function. Invoice and proof/payment statuses are distinct. Dates are authoritative; scheduled renewals use [start,end) and serialized property locks/overlap validation. A unique introductory trial prevents reuse. Booking hold/expiry durations are unchanged.
 
-## Public projections
+Premium income uses `places_platform_cash_entries` and `PLACES_PREMIUM_SUBSCRIPTION`, separate from `finance_transaction_entries` (which requires a real booking). Revenue is displayed on verified cash basis, with immutable refunds and retained service periods; it is not automatic accrual revenue recognition. No partner settlements or new payment gateways are invented.
 
-`places_public_destinations_v`, `places_public_directory_v`, and `places_public_plan_v` are explicit column allowlists. The directory projection filters out demo, unpublished, unverified, and expired-contact rows. Public roles receive view access but no direct select on private/admin tables. No Stay table, booking RPC, inventory trigger, or payment table is changed.
-
-Run `supabase/tests/places_v1_smoke.sql` after applying the migration in local/staging. The test checks RLS flags, public allowlist grants, private-table denial, and verification RPC grants.
-
-Do not apply the migration to Supabase Cloud as part of this implementation task.
+Apply only the reviewed candidate files from an isolated migration scope after a protected recovery point. Retain genuine applied migration files; do not repair history artificially or include held `20261118070001_admin_operations_schedule_write_lockdown.sql`. `--include-all` is needed because the original Places migration has a later timestamp already applied. Exact dry-run must show only approved files.
