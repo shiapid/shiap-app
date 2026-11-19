@@ -1,21 +1,20 @@
-# Places product scope
+# SHIAP property ecosystem
 
-## Directory
+## Three distinct products
+- **Free Places — Be Discovered.** Compact contact directory by Master Destinasi. Name, destination and verified business WhatsApp only. No public Free/Premium filter and no account required to stay listed.
+- **Places Premium — Build Your Brand.** Reviewed property website, real owner media, room display information, policies, Digital Kit, SEO and aggregate marketing analytics. Direct inquiry carries no SHIAP booking commission. It is not a PMS and a WhatsApp handoff is not a confirmed booking.
+- **Stay by SHIAP — Grow Your Business.** Existing Stay booking distribution plus explicit commercial/operational agreements. Booking Partner, Stay Management and Fully Managed are separate models, not subscription tiers.
 
-Public navigation label: **Places**. Tagline: **Discover Your Next Stay.** The directory is organized by live destination records; the public UI does not offer Free/Premium filters. Search covers property name, destination aliases/canonical name, city, province, and accommodation type. Destination counts come from the same verified listing projection used by the cards.
+## Contact and privacy
+Only an explicit Hubungi click opens the name/WhatsApp form. A successful server-side lead save precedes the reference-bearing WhatsApp URL. Closing creates no lead. No raw customer contacts in public URLs or partner analytics. No automatic marketing list. Contact verification is identical for Free/Premium and does not guarantee quality, availability or safe payment.
 
-Only non-demo properties in `published` state with a current contact verification appear. No sample properties, ratings, prices, or availability are fabricated. Optional profile values appear only when stored. Prices are integer IDR.
+## Premium lifecycle
+Ownership/management verification is required before partner access. Draft/preview/review/publication are distinct. Admin re-verifies critical contact/ownership changes. Billing and trial eligibility default off; proposed prices are configurable, versioned and explicitly approved before offer. Optional one-time trial is at most 30 days, without card or automatic paid conversion. Paid invoices use configured bank transfer 100%; proof upload never confirms funds. Admin verifies actual bank funds; renewal periods cannot overlap. Expiry returns to Free without deleting private content. Cancellation/refund are distinct and financial history remains immutable.
 
-## Contact and verification
+## Stay readiness boundary
+The existing engine already has Stay catalogs, pooled room-type inventory, authoritative server pricing, transactional overlap checks and Booking/Finance integration. This release must not replace it. Contract foundation can record agreed scope, responsibility, one fee model, account manager and settlement responsibility, with separate verified access to aggregate schedule summaries. It does not add payout automation or new booking/payment routes.
 
-WhatsApp numbers are normalized to Indonesian international digits and validated before display. `SHP-XXXXX` referrals use an ambiguity-free alphabet. The visitor’s own phone number is never collected. Verification exposes the last checked date and an explicit limitation notice; it does not guarantee property quality, availability, legal status, or payment safety.
+Independent partner PMS, physical-unit allocations, manual external reservations, check-in/out actions, maintenance blocks integrated with inventory, direct-to-property reconciliation and full managed field operations require a separately verified expansion of the existing Stay architecture. Until ready, Stay Management/Fully Managed/direct payments cannot be activated as paid services. No team capacity, prices, revenue gains or settlements are invented.
 
-## Partner plans
-
-- **Places Free:** intended directory contact listing; online onboarding is unavailable until a verified partner contact/form is configured.
-- **Places Premium:** configurable proposed/actual monthly plan display. Default is a proposed amount; Premium remains disabled. PMS functions are a roadmap only.
-- **Stay by SHIAP:** separate operating model. A Stay link appears only for an explicit admin-verified property mapping. No inventory or booking synchronization is introduced.
-
-## Later milestones
-
-Owner/staff tenants, subscriptions and entitlements, room/unit PMS, calendars, availability, inventory holds, bookings, settlements, and provider payments are not part of V1. No Places booking or payment is accepted.
+## Infrastructure
+Canonical Premium URL is https://app.shiap.id/places/[slug]. Custom subdomains remain inactive until separately approved DNS/TLS/Passenger/tenant routing checks pass. No gateway or DNS change is introduced here.

@@ -1,3 +1,7 @@
+# Places verification
+
+Current ecosystem verification is recorded milestone-by-milestone in [ECOSYSTEM_TEST_REPORT.md](./ECOSYSTEM_TEST_REPORT.md). Older reports below describe the historical directory release and must not be read as the current capability or privacy specification.
+
 # Places test report
 
 ## Automated checks
