@@ -44,3 +44,10 @@ test('custom Places templates require both known variables and preserve encoded 
  assert.equal(renderPlacesWhatsAppTemplate('{nama_properti} {kode_referensi}','A {kode_referensi}','SHP-2ABCD'),'A {kode_referensi} SHP-2ABCD');
  assert.match(new URL(buildWhatsAppUrl({phone:'08562130222',propertyName:'Villa',refCode:'SHP-2ABCD'})).searchParams.get('text'),/Halo Kak 👋/);
 });
+
+import { validatePlacesLead, PLACES_PRIVACY_VERSION } from '../src/lib/places/leads.ts';
+test('lead validation normalizes contacts and rejects spam, malformed input and obsolete notices',()=>{
+ const body={name:'Synthetic Visitor',phone:'08562130222',propertyId:'77777777-7777-4777-8777-777777777777',requestId:'88888888-8888-4888-8888-888888888888',privacyVersion:PLACES_PRIVACY_VERSION};
+ assert.equal(validatePlacesLead(body).phone,'628562130222');
+ for(const change of [{name:''},{name:'x'.repeat(101)},{phone:'abc'},{privacyVersion:'old'},{propertyId:'bad'},{requestId:'bad'},{website:'spam'}]) assert.equal(validatePlacesLead({...body,...change}),null);
+});
