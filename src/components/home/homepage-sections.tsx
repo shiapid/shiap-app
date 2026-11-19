@@ -145,7 +145,7 @@ export default function HomePageSections({ hero, trips, destinations, profile }:
       <div className="space-y-8 px-4 pt-5 sm:px-4 sm:pt-7 md:space-y-10 md:px-2 md:pt-8">
         <section aria-labelledby="main-services-heading" className="-mx-1">
           <h2 id="main-services-heading" className="sr-only">Layanan utama SHIAP</h2>
-          <div className="grid grid-cols-3 gap-2 min-[390px]:grid-cols-5 sm:gap-2.5">
+          <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
             {mainServices.map(({ name, description, href, iconKey }) => (
               <Link href={href} key={name} aria-label={`${name}: ${description}`} className="group flex min-w-0 flex-col items-center rounded-[20px] border border-white/80 bg-white/95 px-1 py-3 text-center shadow-[0_8px_25px_rgba(10,46,99,0.08)] transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1974FF] sm:rounded-[22px] sm:px-2.5 sm:py-4">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EAF3FC] text-[#1974FF] sm:h-14 sm:w-14">
