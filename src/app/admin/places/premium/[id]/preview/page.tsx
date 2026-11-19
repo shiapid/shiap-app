@@ -1,0 +1,7 @@
+import {notFound} from "next/navigation";
+import {requireAdmin} from "@/lib/admin/guard";
+import {createClient} from "@/lib/supabase/server";
+import {PremiumWebsite,type PremiumIdentity} from "@/components/places/premium-website";
+import {emptyPremiumProfile,validatePremiumProfile} from "@/lib/places/premium";
+export const dynamic="force-dynamic";
+export default async function Page({params}:{params:Promise<{id:string}>}){await requireAdmin();const {id}=await params;const c=await createClient();const [p,d]=await Promise.all([c.from("places_properties").select("id,slug,name,whatsapp_phone,contact_verified_at,places_destinations(name,city,province)").eq("id",id).maybeSingle(),c.from("places_property_profiles").select("*").eq("property_id",id).maybeSingle()]);if(!p.data||!d.data)notFound();const data=Object.fromEntries(Object.entries(emptyPremiumProfile).map(([k,v])=>[k,d.data[k]??v]));const profile=validatePremiumProfile(data);if(!profile)return <p className="p-5 text-sm">Periksa kembali draft profil sebelum preview.</p>;const destination=Array.isArray(p.data.places_destinations)?p.data.places_destinations[0]:p.data.places_destinations;const property={...p.data,destination_name:destination?.name||"",city:destination?.city,province:destination?.province,stay_slug:null} as PremiumIdentity;return <PremiumWebsite property={property} profile={profile} template="" refCode="" preview/>;}

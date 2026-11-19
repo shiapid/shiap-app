@@ -62,3 +62,11 @@ test("compact Places navigation combines filters, preserves unrelated parameters
   assert.equal(url.searchParams.has("page"), false);
   assert.equal(placesSearchHref("?q=old&destination=old&page=2", "", ""), "/places");
 });
+
+test("Premium content validation rejects unsafe fields and preserves integer display prices", async()=>{
+ const {validatePremiumProfile,premiumPeriodActive}=await import("../src/lib/places/premium.ts");
+ assert.equal(validatePremiumProfile({starting_price_idr:100000}).starting_price_idr,100000);
+ assert.equal(validatePremiumProfile({starting_price_idr:0}).starting_price_idr,0);
+ for(const body of [{starting_price_idr:-1},{starting_price_idr:1.5},{cover_image_url:"javascript:alert(1)"},{gallery_urls:["https://user:password@example.invalid/x"]},{social_links:{unknown:"https://example.invalid"}},{reviewed_by:"forged"},{room_summaries:[{name:"Room",capacity:0}]}])assert.equal(validatePremiumProfile(body),null);
+ const now=Date.parse("2026-11-19T00:00:00Z");assert(premiumPeriodActive("TRIALING","2026-11-18","2026-11-20",now));assert(!premiumPeriodActive("ACTIVE","2026-11-18","2026-11-19",now));assert(!premiumPeriodActive("PENDING_VERIFICATION","2026-11-18","2026-11-20",now));
+});

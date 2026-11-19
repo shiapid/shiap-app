@@ -1,0 +1,36 @@
+begin;
+insert into auth.users(id,email) values('31313131-3131-4131-8131-313131313131','premium-admin@example.invalid'),('32323232-3232-4232-8232-323232323232','premium-other@example.invalid');
+insert into public.admin_users(user_id) values('31313131-3131-4131-8131-313131313131');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','31313131-3131-4131-8131-313131313131',true);
+do $$declare d uuid;p uuid;v integer;begin
+ select id into d from public.places_destinations where is_active and archived_at is null limit 1;
+ p:=public.admin_create_free_places_listing('Synthetic Premium Profile QA',d,'080000000000');
+ v:=public.admin_save_places_premium_profile(p,0,'{"description":"Synthetic property description for local testing only.","starting_price_idr":100000,"room_summaries":[{"name":"Synthetic Room","capacity":2,"starting_price_idr":50000}]}',true);
+ begin perform public.admin_save_places_premium_profile(p,0,'{}',false);raise exception 'stale save accepted';exception when sqlstate 'PT409' then null;end;
+ begin perform public.admin_save_places_premium_profile(p,v,'{"cover_image_url":"javascript:alert(1)"}',false);raise exception 'unsafe URL';exception when invalid_parameter_value then null;end;
+ perform public.admin_review_places_premium_profile(p,v,true);
+ if (select count(*) from public.places_public_premium_v where property_id=p)<>0 then raise exception 'Free profile incorrectly public';end if;
+ if (select description from public.places_public_directory_v where id=p) is not null then raise exception 'draft leaked through directory';end if;
+ perform set_config('test.premium_property',p::text,true);
+end $$;
+reset role;
+insert into public.places_subscriptions(property_id,origin,status,starts_at,ends_at) values(current_setting('test.premium_property')::uuid,'TRIAL','TRIALING',now()-interval '1 day',now()+interval '1 day');
+set local role anon;
+do $$declare p uuid:=current_setting('test.premium_property')::uuid;begin
+ if (select count(*) from public.places_public_premium_v where property_id=p)<>1 then raise exception 'active reviewed website missing';end if;
+ if (select description from public.places_public_directory_v where id=p) not like 'Synthetic property%' then raise exception 'approved directory projection missing';end if;
+ begin perform * from public.places_property_profiles;raise exception 'anon draft accessible';exception when insufficient_privilege then null;end;
+ begin perform reviewed_by from public.places_profile_publications;raise exception 'review actor exposed';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+update public.places_subscriptions set starts_at=now()-interval '2 days',ends_at=now()-interval '1 day' where property_id=current_setting('test.premium_property')::uuid;
+set local role anon;
+do $$begin if exists(select 1 from public.places_public_premium_v where property_id=current_setting('test.premium_property')::uuid) then raise exception 'expired content exposed';end if;end $$;
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','32323232-3232-4232-8232-323232323232',true);
+do $$begin begin perform public.admin_save_places_premium_profile(current_setting('test.premium_property')::uuid,2,'{}',false);raise exception 'nonadmin write';exception when insufficient_privilege then null;end;if exists(select 1 from public.places_property_profiles where property_id=current_setting('test.premium_property')::uuid) then raise exception 'nonadmin draft read';end if;begin insert into public.places_subscriptions(property_id,origin,status) values(current_setting('test.premium_property')::uuid,'PAID','PENDING_PAYMENT');raise exception 'nonadmin subscription write';exception when insufficient_privilege then null;end;end $$;
+reset role;
+select 'PLACES_PREMIUM_FOUNDATION_RLS_PASS';
+rollback;
