@@ -1,4 +1,6 @@
+import { DEFAULT_PLACES_WHATSAPP_TEMPLATE, renderPlacesWhatsAppTemplate } from "./whatsapp-template.ts";
 export type WhatsAppMessageOptions = {
+  template?: string;
   phone: string;
   propertyName: string;
   refCode: string;
@@ -23,7 +25,7 @@ export function normalizePlacesSearch(input: string): string {
   return input.normalize("NFKC").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
-export function buildWhatsAppUrl({ phone, propertyName, refCode, checkIn, guests }: WhatsAppMessageOptions): string | null {
+export function buildWhatsAppUrl({ phone, propertyName, refCode, checkIn, guests, template = DEFAULT_PLACES_WHATSAPP_TEMPLATE }: WhatsAppMessageOptions): string | null {
   const normalizedPhone = normalizeIdPhone(phone);
   const name = propertyName.trim();
   if (!normalizedPhone || !name || !refPattern.test(refCode)) return null;
@@ -32,15 +34,6 @@ export function buildWhatsAppUrl({ phone, propertyName, refCode, checkIn, guests
     checkIn?.trim() ? `Tanggal check-in: ${checkIn.trim()}` : null,
     Number.isInteger(guests) && Number(guests) > 0 ? `Jumlah tamu: ${guests}` : null,
   ].filter((line): line is string => Boolean(line));
-  const message = [
-    `Halo, saya menemukan ${name} melalui SHIAP Places di app.shiap.id.`,
-    "",
-    "Saya ingin menanyakan informasi penginapan dan reservasi.",
-    ...(optionalLines.length ? ["", ...optionalLines] : []),
-    "",
-    `Kode referensi SHIAP: ${refCode}`,
-    "",
-    "Mohon informasi harga dan ketersediaan. Terima kasih.",
-  ].join("\n");
+  const message = [renderPlacesWhatsAppTemplate(template, name, refCode), ...optionalLines].join("\n");
   return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
 }

@@ -1,3 +1,4 @@
+import { loadPlacesWhatsAppTemplate } from "@/lib/places/whatsapp-settings";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -35,7 +36,8 @@ export default async function PlacesPropertyPage({ params }: Props) {
   if (!result.data) notFound();
   const property = result.data as PlacesListing;
   const refCode = createPlacesReferralCode();
-  const whatsAppUrl = buildWhatsAppUrl({ phone: property.whatsapp_phone, propertyName: property.name, refCode });
+  const template = await loadPlacesWhatsAppTemplate();
+  const whatsAppUrl = buildWhatsAppUrl({ template, phone: property.whatsapp_phone, propertyName: property.name, refCode });
   const mapUrl = property.map_url && /^https?:\/\//i.test(property.map_url) ? property.map_url : null;
   const verifiedDate = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(new Date(property.contact_verified_at));
   const price = formatIdr(property.starting_price_idr);

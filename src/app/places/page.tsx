@@ -1,3 +1,4 @@
+import { loadPlacesWhatsAppTemplate } from "@/lib/places/whatsapp-settings";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { createPlacesReferralCode } from "@/lib/places/referral";
@@ -16,6 +17,7 @@ type SearchParams = Promise<{ q?: string | string[]; destination?: string | stri
 function one(value: string | string[] | undefined) { return typeof value === "string" ? value : ""; }
 
 export default async function PlacesPage({ searchParams }: { searchParams: SearchParams }) {
+  const template = await loadPlacesWhatsAppTemplate();
   const params = await searchParams;
   const query = normalizePlacesSearch(one(params.q));
   const destinationSlug = one(params.destination).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 100);
@@ -37,5 +39,5 @@ export default async function PlacesPage({ searchParams }: { searchParams: Searc
   } catch {
     loadError = true;
   }
-  return <PlacesDirectory destinations={destinations} listings={listings} query={query} destinationSlug={destinationSlug} loadError={loadError}/>;
+  return <PlacesDirectory template={template} destinations={destinations} listings={listings} query={query} destinationSlug={destinationSlug} loadError={loadError}/>;
 }

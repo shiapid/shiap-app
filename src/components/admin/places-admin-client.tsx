@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, CircleAlert, LoaderCircle, Plus, Save } from "lucide-react";
@@ -101,6 +102,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   }
 
   return <div className="space-y-5">
+    <Link href="/admin/places/settings" className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 text-xs font-bold text-[#1265D8]">Pengaturan → Template WhatsApp</Link>
     <header><p className="text-[10px] font-extrabold tracking-[.17em] text-[#1265D8]">PLACES · OPERASIONAL</p><h1 className="mt-1 text-2xl font-extrabold text-[#0A2E63]">Direktori & verifikasi</h1><p className="mt-1 text-sm text-slate-500">Listing hanya tampil setelah kontak diverifikasi dan statusnya dipublikasikan.</p></header>
     {message ? <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-[#0A2E63]">{message}</p> : null}
     {loadError ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Data Places belum tersedia. Pastikan migration Places telah diterapkan pada lingkungan non-production.</p> : null}

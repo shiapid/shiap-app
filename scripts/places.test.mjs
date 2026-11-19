@@ -32,3 +32,15 @@ test("sanitizes and bounds shared destination/property searches", () => {
   assert.equal(normalizePlacesSearch("  Villa,   Teluk Tamiang! "), "Villa Teluk Tamiang");
   assert.equal(normalizePlacesSearch("a".repeat(100)).length, 80);
 });
+
+import { DEFAULT_PLACES_WHATSAPP_TEMPLATE, validPlacesWhatsAppTemplate, renderPlacesWhatsAppTemplate } from '../src/lib/places/whatsapp-template.ts';
+test('custom Places templates require both known variables and preserve encoded references',()=>{
+ assert.equal(validPlacesWhatsAppTemplate(DEFAULT_PLACES_WHATSAPP_TEMPLATE),true);
+ for(const value of ['', '{nama_properti}', '{nama_properti} {kode_referensi} {unknown}', '{nama_properti} {kode_referensi} {', 'x'.repeat(2001)]) assert.equal(validPlacesWhatsAppTemplate(value),false);
+ const template='Halo 👋 *{nama_properti}* & harga? Ref {kode_referensi}';
+ const url=buildWhatsAppUrl({phone:'08562130222',propertyName:'Villa A & B',refCode:'SHP-2ABCD',template});
+ assert.equal(new URL(url).pathname,'/628562130222');
+ assert.equal(new URL(url).searchParams.get('text'),'Halo 👋 *Villa A & B* & harga? Ref SHP-2ABCD');
+ assert.equal(renderPlacesWhatsAppTemplate('{nama_properti} {kode_referensi}','A {kode_referensi}','SHP-2ABCD'),'A {kode_referensi} SHP-2ABCD');
+ assert.match(new URL(buildWhatsAppUrl({phone:'08562130222',propertyName:'Villa',refCode:'SHP-2ABCD'})).searchParams.get('text'),/Halo Kak 👋/);
+});

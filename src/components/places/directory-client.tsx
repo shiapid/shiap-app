@@ -5,9 +5,9 @@ import { buildWhatsAppUrl } from "@/lib/places/utils";
 import { accommodationLabels, formatIdr, type PlacesDestination, type PlacesListing } from "@/lib/places/types";
 import { PlacesWhatsAppLink } from "@/components/places/whatsapp-link";
 
-function PropertyCard({ item }: { item: DirectoryListing }) {
+function PropertyCard({ item, template }: { item: DirectoryListing; template: string }) {
   const refCode = item.ref_code;
-  const whatsAppUrl = buildWhatsAppUrl({ phone: item.whatsapp_phone, propertyName: item.name, refCode });
+  const whatsAppUrl = buildWhatsAppUrl({ phone: item.whatsapp_phone, propertyName: item.name, refCode, template });
   const price = formatIdr(item.starting_price_idr);
   const hasProfile = Boolean(item.description || item.cover_image_url || item.gallery_urls?.length || item.capacity || price || item.facilities?.length || item.room_summaries?.length || item.policies || item.map_url || item.stay_slug);
   if (!hasProfile) return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(10,46,99,.045)]">
@@ -42,8 +42,8 @@ function PropertyCard({ item }: { item: DirectoryListing }) {
 
 export type DirectoryListing = PlacesListing & { ref_code: string };
 
-export function PlacesDirectory({ destinations, listings, query, destinationSlug, loadError }: {
-  destinations: PlacesDestination[]; listings: DirectoryListing[]; query: string; destinationSlug: string; loadError: boolean;
+export function PlacesDirectory({ template, destinations, listings, query, destinationSlug, loadError }: {
+  template: string; destinations: PlacesDestination[]; listings: DirectoryListing[]; query: string; destinationSlug: string; loadError: boolean;
 }) {
   const currentDestination = destinations.find((destination) => destination.slug === destinationSlug);
   return <main className="min-h-dvh bg-[#F7F9FC] pb-[calc(6rem+env(safe-area-inset-bottom))] text-[#0A2E63]">
@@ -73,7 +73,7 @@ export function PlacesDirectory({ destinations, listings, query, destinationSlug
         <div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#1265D8]">Direktori Places</p><h2 className="mt-1 text-xl font-extrabold">{currentDestination ? currentDestination.name : "Penginapan terverifikasi"}</h2></div>
         <p className="text-xs text-slate-500">{listings.length} properti</p>
       </div>
-      {loadError ? <div role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Direktori sedang disiapkan. Silakan coba lagi beberapa saat lagi.</div> : listings.length ? <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{listings.map((item) => <PropertyCard item={item} key={item.id}/>)}</div> : <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
+      {loadError ? <div role="status" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Direktori sedang disiapkan. Silakan coba lagi beberapa saat lagi.</div> : listings.length ? <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{listings.map((item) => <PropertyCard item={item} key={item.id} template={template}/>)}</div> : <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-[#1265D8]"><Building2 size={23}/></span>
         <h3 className="mt-3 text-base font-extrabold">{query || destinationSlug ? "Belum ada hasil yang cocok" : "Listing terverifikasi segera hadir"}</h3>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{query || destinationSlug ? "Coba ubah kata kunci atau pilih Semua lokasi." : "SHIAP sedang menyiapkan direktori penginapan. Informasi properti hanya ditampilkan setelah kontaknya diverifikasi."}</p>
