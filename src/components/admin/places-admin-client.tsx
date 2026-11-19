@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CircleAlert, LoaderCircle, Plus, Save } from "lucide-react";
+import { BadgeCheck, CircleAlert, LoaderCircle, MoreVertical, Plus, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeIdPhone } from "@/lib/places/utils";
 
@@ -20,6 +20,7 @@ const slugify = (value: string) => value.toLowerCase().normalize("NFKD").replace
 export function PlacesAdminClient({ destinations, properties, profiles, plan, loadError }: { destinations: Destination[]; properties: Property[]; profiles: Profile[]; plan: Plan | null; loadError: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [destination, setDestination] = useState({ name: "", city: "", province: "" });
   const [property, setProperty] = useState({ name: "", destination_id: "", whatsapp_phone: "" });
@@ -30,6 +31,30 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
     try { const result = await action(); if (result.error) throw new Error(result.error.message || "Permintaan gagal."); setMessage(success); router.refresh(); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Perubahan belum dapat disimpan."); }
     finally { setBusy(""); }
+  }
+
+  function propertyRow(item: Property, hasProfile: boolean) {
+    const verified = Boolean(item.contact_verified_at && (!item.contact_verification_expires_at || new Date(item.contact_verification_expires_at).getTime() > Date.now()));
+    const destinationName = destinations.find(d=>d.id===item.destination_id)?.name || "—";
+    const closeMenu = (event: React.MouseEvent<HTMLButtonElement>) => event.currentTarget.closest("details")?.removeAttribute("open");
+    return <div className="relative flex min-h-16 items-center gap-2 px-3 py-2">
+      <div className="min-w-0 flex-1 overflow-x-auto"><div className="grid min-w-[680px] grid-cols-[minmax(150px,1.5fr)_minmax(130px,1fr)_140px_100px_120px_70px] items-center gap-3 text-xs">
+        <span className="truncate font-bold text-[#0A2E63]" title={item.name}>{item.name}</span>
+        <span className="truncate text-slate-600" title={destinationName}>{destinationName}</span>
+        <span className="text-slate-600">{item.whatsapp_phone}</span>
+        <span className={item.status==="published"&&verified?"font-semibold text-emerald-700":"font-semibold text-slate-500"}>{item.status==="published"?(verified?"Aktif":"Tidak aktif"):statuses.find(([v])=>v===item.status)?.[1] || item.status}</span>
+        <span className={verified?"text-[#1265D8]":"text-amber-700"}>{verified?"Terverifikasi":item.contact_verified_at?"Verifikasi kedaluwarsa":"Belum verifikasi"}</span>
+        <span title="Places Premium belum diaktifkan. Profil lengkap bukan status langganan berbayar." className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Free</span>
+      </div></div>
+      <details className="group relative shrink-0"><summary aria-label={'Aksi properti '+item.name} className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1265D8] [&::-webkit-details-marker]:hidden"><MoreVertical size={19}/></summary>
+        <div className="absolute right-0 top-12 z-30 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          <button type="button" disabled={Boolean(busy)} onClick={e=>{closeMenu(e);setEditingId(item.id);}} className="min-h-11 w-full rounded-lg px-3 text-left text-xs font-semibold hover:bg-slate-50">Edit properti{hasProfile?" & profil":""}</button>
+          <button type="button" disabled={Boolean(busy)} onClick={e=>{closeMenu(e);setEditingId(item.id);}} className="min-h-11 w-full rounded-lg px-3 text-left text-xs font-semibold text-[#1265D8] hover:bg-blue-50">Verifikasi &amp; Terbitkan</button>
+          <button type="button" disabled={Boolean(busy)||!item.contact_verified_at} onClick={e=>{closeMenu(e);void run('revoke-'+item.id,()=>supabase.rpc("admin_revoke_places_contact",{p_property_id:item.id}),"Verifikasi dicabut dan publikasi ditarik.");}} className="min-h-11 w-full rounded-lg px-3 text-left text-xs font-semibold hover:bg-slate-50 disabled:opacity-50">Tarik publikasi</button>
+          <button type="button" disabled={Boolean(busy)} onClick={e=>{closeMenu(e);void archiveProperty(item);}} className="min-h-11 w-full rounded-lg px-3 text-left text-xs font-semibold text-red-700 hover:bg-red-50">Hapus properti</button>
+        </div>
+      </details>
+    </div>;
   }
 
   async function createDestination(event: FormEvent<HTMLFormElement>) {
@@ -116,10 +141,12 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
       <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<BadgeCheck size={15}/>}Verifikasi &amp; Terbitkan</button>
     </form></section>
 
-    <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.filter(item=>item.status!=="archived").length})</h2>{properties.length ? properties.filter(item=>item.status!=="archived").map((item)=>{
+    <section className="space-y-3"><h2 className="font-extrabold text-[#0A2E63]">Properti ({properties.filter(item=>item.status!=="archived").length})</h2><p className="text-xs text-slate-500">Nama · Destinasi · WhatsApp · Status · Verifikasi · Paket. Semua listing saat ini Free; Premium belum aktif. Geser baris pada layar kecil untuk melihat seluruh kolom.</p>{properties.length ? properties.filter(item=>item.status!=="archived").map((item)=>{
       const profile=profiles.find(p=>p.property_id===item.id);
       const hasProfile=Boolean(profile && (profile.description || profile.cover_image_url || profile.gallery_urls?.length || profile.capacity || profile.starting_price_idr!=null || profile.facilities?.length || profile.room_summaries?.length || profile.policies || profile.map_url));
-      if(!hasProfile) return <article key={item.id} className={card}>
+      if(!hasProfile) return <article key={item.id} className="relative rounded-xl border border-slate-200 bg-white">
+        {propertyRow(item,false)}
+        {editingId===item.id ? <div className="border-t border-slate-100 p-4"><button type="button" onClick={()=>setEditingId(null)} className="mb-3 min-h-10 text-xs font-bold text-slate-500">Tutup editor</button>
         <form onSubmit={event=>void saveFreeProperty(event,item.id)} className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs font-semibold text-slate-600">Nama Properti<input name="name" required minLength={2} maxLength={160} defaultValue={item.name} className={input}/></label>
           <label className="text-xs font-semibold text-slate-600">Destinasi<select name="destination_id" required defaultValue={item.destination_id} className={input}>{destinations.filter(d=>d.is_active||d.id===item.destination_id).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
@@ -132,8 +159,11 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
             <button disabled={Boolean(busy)} type="button" onClick={()=>void archiveProperty(item)} className="min-h-11 rounded-xl border border-red-200 px-4 text-xs font-bold text-red-700">Hapus properti</button>
           </div>
         </form>
+        </div> : null}
       </article>;
-      return <article key={item.id} className={card}>
+      return <article key={item.id} className="relative rounded-xl border border-slate-200 bg-white">
+      {propertyRow(item,true)}
+      {editingId===item.id ? <div className="border-t border-slate-100 p-4"><button type="button" onClick={()=>setEditingId(null)} className="mb-3 min-h-10 text-xs font-bold text-slate-500">Tutup editor</button>
       <form onSubmit={(event)=>void updateProperty(event,item.id)} className="grid gap-2 sm:grid-cols-3">
         <label className="text-[10px] font-semibold text-slate-500">Nama<input name="name" required defaultValue={item.name} className={input}/></label>
         <label className="text-[10px] font-semibold text-slate-500">Slug<input name="slug" required defaultValue={item.slug} className={input}/></label>
@@ -165,6 +195,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         </form>
       </div>
       {item.is_demo ? <p className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-[10px] text-amber-900"><CircleAlert size={14}/>Properti demo tidak pernah ditampilkan sebagai listing nyata.</p> : null}
+      </div> : null}
     </article>}) : <p className={card + " text-sm text-slate-500"}>Belum ada properti. Destinasi sudah siap, properti hanya muncul setelah verifikasi kontak.</p>}</section>
 
     <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Places Premium · konfigurasi harga</h2><p className="mt-1 text-xs leading-5 text-slate-500">Pengaturan ini hanya menampilkan usulan/harga plan. Produk Premium tetap nonaktif; halaman ini tidak menerima langganan, booking, atau pembayaran.</p>{planDraft ? <form onSubmit={updatePlan} className="mt-3 grid gap-3 sm:grid-cols-3"><label className="text-xs font-semibold text-slate-600">Harga bulanan IDR<input type="number" min="0" step="1" required value={planDraft.premium_monthly_price_idr} onChange={(e)=>setPlanDraft({...planDraft,premium_monthly_price_idr:e.target.value})} className={input}/></label><label className="text-xs font-semibold text-slate-600">Status harga<select value={planDraft.price_status} onChange={(e)=>setPlanDraft({...planDraft,price_status:e.target.value as Plan["price_status"]})} className={input}><option value="proposed">Usulan</option><option value="actual">Harga aktual</option></select></label><label className="text-xs font-semibold text-slate-600">Maksimum unit<input type="number" min="1" step="1" required value={planDraft.max_units} onChange={(e)=>setPlanDraft({...planDraft,max_units:e.target.value})} className={input}/></label><button disabled={busy==="plan"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white sm:col-span-3"><Save size={14}/>Simpan konfigurasi</button></form> : <p className="mt-3 text-xs text-slate-500">Konfigurasi harga belum dapat dimuat.</p>}</section>
