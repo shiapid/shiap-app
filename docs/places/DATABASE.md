@@ -12,6 +12,8 @@ Additive candidate migrations:
 6. `20261119111059_stay_partner_agreements_foundation_v1.sql`: separate Stay inquiries, contract/access metadata and guarded aggregate snapshot. No engine mutation.
 7. `20261119112717_places_public_projection_hardening_v1.sql`: preserve public projection signatures/filters behind invoker views and private controlled readers; no raw-table public grants.
 
+8. `20261119124908_places_lifecycle_query_indexes_v1.sql`: lookup/retention indexes only, no data or permission changes.
+
 No row backfills, historical tickets, subscription grants, PAID changes or external email activation. Foreign keys restrict removal of commercial records. RLS and explicit grants apply to every new table/function. Invoice and proof/payment statuses are distinct. Dates are authoritative; scheduled renewals use [start,end) and serialized property locks/overlap validation. A unique introductory trial prevents reuse. Booking hold/expiry durations are unchanged.
 
 Premium income uses `places_platform_cash_entries` and `PLACES_PREMIUM_SUBSCRIPTION`, separate from `finance_transaction_entries` (which requires a real booking). Revenue is displayed on verified cash basis, with immutable refunds and retained service periods; it is not automatic accrual revenue recognition. No partner settlements or new payment gateways are invented.
