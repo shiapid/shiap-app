@@ -2,7 +2,7 @@ import type {ReactNode} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
-import { Camera, Waves } from "lucide-react";
+import { Camera, Package, Waves } from "lucide-react";
 
 export type ExperienceCardData = {
   id: string; slug: string; title: string; tagline: string; description: string;
@@ -21,16 +21,38 @@ export type PublicExperience = {
 };
 
 export default function LegacyExperienceCatalog({ type, viewMode, items, error }: { type: "activity" | "documentation"; viewMode?: "catalog" | "rental"; items: PublicExperience[]; error?: boolean }) {
-  const title = type === "documentation" ? "Shinema" : viewMode === "rental" ? "Rental wisata" : "Aktivitas laut & wahana";
-  const subtitle = type === "documentation" ? "Pilih paket foto dan video untuk perjalananmu." : viewMode === "rental" ? "Peralatan wisata yang tersedia di katalog SHIAP." : "Temukan aktivitas dan wahana laut di Kotabaru.";
+  if (viewMode === "rental") return <RentalCatalog items={items} error={error}/>;
+  const title = type === "documentation" ? "Shinema" : "Aktivitas laut & wahana";
+  const subtitle = type === "documentation" ? "Pilih paket foto dan video untuk perjalananmu." : "Temukan aktivitas dan wahana laut di Kotabaru.";
   return <main className="mx-auto min-h-dvh max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-8">
     <header className="rounded-[22px] bg-gradient-to-r from-[#0A2E63] to-[#1974FF] p-6 text-white"><p className="text-[10px] font-extrabold tracking-[.2em]">JELAJAHI SHIAP</p><h1 className="mt-2 text-3xl font-extrabold">{title}</h1><p className="mt-2 text-sm text-white/80">{subtitle}</p></header>
     {error&&<p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Katalog sedang tidak dapat dimuat. Silakan coba kembali.</p>}
     <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item)=><article key={item.id} className="overflow-hidden rounded-[22px] border border-blue-100 bg-white shadow-sm"><div className="relative aspect-[16/10] bg-gradient-to-br from-[#0A2E63] to-[#25A4B8]">{item.cover_image_url&&<Image src={item.cover_image_url} alt="" fill sizes="(max-width: 640px) 100vw, 33vw" className="object-cover"/>}</div><div className="p-4"><p className="text-[10px] font-bold text-[#1974FF]">{item.location}</p><h2 className="mt-1 font-extrabold text-[#0A2E63]">{item.title}</h2><p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-500">{item.short_description??item.description}</p><p className="mt-3 text-[10px] text-slate-500">{item.duration??"Durasi dikonfirmasi"}</p><p className="mt-2 text-sm font-extrabold text-[#0A2E63]">{money(Number(item.base_price))}<span className="ml-1 text-[10px] font-medium text-slate-500">/{item.price_unit_label}</span></p><Link href={`/booking?service=${encodeURIComponent(item.id)}&type=${item.experience_type}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1974FF] px-4 py-3 text-xs font-bold text-white">Pilih layanan<ArrowRight size={14}/></Link></div></article>)}</div>
     {!items.length&&!error&&<section className="mt-5 rounded-2xl border border-dashed border-blue-200 bg-white p-8 text-center"><h2 className="font-bold text-[#0A2E63]">Belum ada produk tersedia</h2><p className="mt-1 text-sm text-slate-500">Paket akan ditampilkan setelah admin memublikasikannya.</p></section>}
-    {type==="activity"&&<p className="mt-5 flex items-center justify-center gap-2 text-[10px] text-slate-400"><Waves size={14}/>{viewMode==="rental"?"Rental SHIAP":"Aktivitas laut"} · disesuaikan dengan katalog aktif</p>}
+    {type==="activity"&&<p className="mt-5 flex items-center justify-center gap-2 text-[10px] text-slate-400"><Waves size={14}/>Aktivitas laut · disesuaikan dengan katalog aktif</p>}
     {type==="documentation"&&<p className="mt-5 flex items-center justify-center gap-2 text-[10px] text-slate-400"><Camera size={14}/>Dokumentasi perjalanan SHINEMA</p>}
   </main>;
+}
+
+/** Rental-only storefront. Booking URLs and catalog prices remain authoritative upstream. */
+function RentalCatalog({ items, error }: { items: PublicExperience[]; error?: boolean }) {
+ return <main className="mx-auto min-h-dvh max-w-4xl bg-[#F7F9FC] px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 text-[#0A2E63] sm:px-6 sm:pt-6">
+  <header className="mb-4 flex items-end justify-between gap-3"><div><h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Rental</h1><p className="mt-1 text-xs text-slate-500">Perlengkapan untuk perjalananmu.</p></div>{!error && <p className="shrink-0 text-xs text-slate-500">{items.length} produk</p>}</header>
+  {error && <p role="alert" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Katalog sedang tidak dapat dimuat. Silakan coba kembali.</p>}
+  <div aria-label="Produk rental" className="grid grid-cols-2 gap-2.5 sm:gap-4">{items.map(item => <article key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+   <Link href={`/booking?service=${encodeURIComponent(item.id)}&type=${item.experience_type}`} className="group flex h-full flex-col focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#1265D8]">
+    <div className="relative grid aspect-square place-items-center overflow-hidden bg-slate-100 text-slate-400">{item.cover_image_url ? <Image src={item.cover_image_url} alt="" fill sizes="(min-width: 896px) 420px, 50vw" className="object-cover transition-transform motion-safe:group-hover:scale-105"/> : <Package size={32} aria-hidden/>}</div>
+    <div className="flex flex-1 flex-col p-2.5 sm:p-3"><h2 className="line-clamp-2 min-h-10 break-words text-sm font-bold leading-5 group-hover:text-[#1265D8]">{item.title}</h2>
+     {item.location && <p className="mt-1 flex min-w-0 items-center gap-1 text-[11px] text-slate-500"><MapPin size={12} aria-hidden className="shrink-0"/><span className="truncate">{item.location}</span></p>}
+     <div className="mt-auto pt-2"><p className="break-words text-sm font-extrabold text-[#0A2E63]">{Number.isFinite(Number(item.base_price)) && Number(item.base_price)>=0 ? money(Number(item.base_price)) : "Lihat harga"}{item.price_unit_label && <span className="ml-1 text-[10px] font-normal text-slate-500">/{item.price_unit_label}</span>}</p>
+      {item.duration && <p className="mt-1 truncate text-[10px] text-slate-500">{item.duration}</p>}
+      <span className="mt-2 flex min-h-11 items-center justify-center gap-1 rounded-lg bg-blue-50 px-2 text-xs font-bold text-[#1265D8] group-hover:bg-blue-100">Pilih <ArrowRight size={13} aria-hidden/></span>
+     </div>
+    </div>
+   </Link>
+  </article>)}</div>
+  {!items.length && !error && <section className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center"><Package size={28} aria-hidden className="mx-auto text-slate-400"/><h2 className="mt-3 text-sm font-bold">Rental segera tersedia</h2><p className="mt-1 text-xs text-slate-500">Produk tampil setelah dipublikasikan Admin.</p></section>}
+ </main>;
 }
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
