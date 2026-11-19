@@ -1,0 +1,127 @@
+{
+  "baseline": "c00e5f25d283193893adcd0e72e6ed2b8cc0eb97",
+  "branch": "release/shiap-master-destinations-v1",
+  "hash_basis": "Git index blob bytes (normalized by repository attributes)",
+  "files": [
+    {
+      "path": "docs/destinations/MAPPING_REPORT.md",
+      "sha256": "ac44fcc1c49f026cd9d623c66fb46f9609af315791e5544becdc1dbf12b7857f"
+    },
+    {
+      "path": "docs/destinations/README.md",
+      "sha256": "853adadaf9724f888ce79e09a3f726bd2917bb76be8038e4c14075512fd2e4e6"
+    },
+    {
+      "path": "docs/destinations/TEST_REPORT.md",
+      "sha256": "17b1b4e8bdff10c994a7d1781213169a21e14c726d3fec64ee681c0a3f54d8b9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "b8f58e6d0d54d75059fbdeb2d2c0d2038980b8e6ba0b25b70d5cd13594ac2c67"
+    },
+    {
+      "path": "scripts/destinations.test.mjs",
+      "sha256": "ab4257de3a59a9c265d5ae85dc7e96c08dd585f3062c01b18a1e2bbb06a7ff2f"
+    },
+    {
+      "path": "scripts/master-destinations-browser.mjs",
+      "sha256": "653b974e01ed5ae7565bbc4ae68c5190811b6f50ffdb5705bbc16da8ee913043"
+    },
+    {
+      "path": "scripts/places-contact-browser.mjs",
+      "sha256": "d3dde5a9de24c8841f465b9ac6cbb00863dbd63253f2fdc5f8b40b20d3a29cd5"
+    },
+    {
+      "path": "src/app/admin/destinations/page.tsx",
+      "sha256": "515dc2156e272bd9673dec82a8ee024859716834327f626809bdec0c91206545"
+    },
+    {
+      "path": "src/app/admin/experiences/page.tsx",
+      "sha256": "c3e2ba9024ab9c5284a962cf78717c8e3d02ab078248761d1d65409a5ce03a16"
+    },
+    {
+      "path": "src/app/api/admin/destinations/assignments/route.ts",
+      "sha256": "9c993dd9202c9b75216cbffda8dcf91b3582c70519065bc2608710a3674889a8"
+    },
+    {
+      "path": "src/app/api/admin/destinations/route.ts",
+      "sha256": "a5be0aace5cc7ca20c31d320336716d3719fbc44509dd59fc748051947d5809a"
+    },
+    {
+      "path": "src/app/experiences/page.tsx",
+      "sha256": "e83695c0b15b3949be362f080af3f862b8f9cd31c50a9e44953a1bd702660147"
+    },
+    {
+      "path": "src/app/stay/page.tsx",
+      "sha256": "5894e1cc2aed820770b70b73da8e822c5c89a17e50f04a235c994e78209e3511"
+    },
+    {
+      "path": "src/app/trip/page.tsx",
+      "sha256": "d071bff23a61583e52f79c583adc58b9dab5e873bcdc28025ace369f0c6e545d"
+    },
+    {
+      "path": "src/components/admin/admin-shell-navigation.tsx",
+      "sha256": "ddb0ea6a7edf19cf3dc83afa2c550b203a23d8cf9a0248a25e527a0e6f41eee9"
+    },
+    {
+      "path": "src/components/admin/catalog-manager.tsx",
+      "sha256": "5f4ec1a3267e47c4af17f15afefca8a94847056ed0c7e67e437df00e56648c40"
+    },
+    {
+      "path": "src/components/admin/destination-master.tsx",
+      "sha256": "150c654b2ca439e764d5bda3160ce85f2267937fde74a694316e816c152e01be"
+    },
+    {
+      "path": "src/components/admin/experience-manager.tsx",
+      "sha256": "84d2d001434930b3f09c5e15b79fef5fe6532147a0af928e76daa5b9eab68072"
+    },
+    {
+      "path": "src/components/admin/experience-platform-manager.tsx",
+      "sha256": "e56aeeb45dc98d21422e1c3d852c146f4b21cbd8ae32fb2a837dad60263fd516"
+    },
+    {
+      "path": "src/components/admin/places-admin-client.tsx",
+      "sha256": "3232d1fef6304224a96425840c227c223c230853e72c7760ea43d4edc4795ad1"
+    },
+    {
+      "path": "src/components/destinations/destination-select.tsx",
+      "sha256": "51802e75286175672fd5ec586d55b7655676e7cd326ebc181f553153b3ab548a"
+    },
+    {
+      "path": "src/components/destinations/public-destination-filter.tsx",
+      "sha256": "71ef500ecef7a79dbc5f83753c95a43e64517fcc7fec947271379c19f74496f1"
+    },
+    {
+      "path": "src/components/destinations/service-destination-editor.tsx",
+      "sha256": "bf0dfe3349d0bb5a5b3d6ed68cfc80b09bd0655bd92c97dbbf9e95cbd500f756"
+    },
+    {
+      "path": "src/components/experiences/experience-catalog.tsx",
+      "sha256": "630637e56f648eded5b2ae9c42c49f6414f6ef179860207aee114f6800c0b6ba"
+    },
+    {
+      "path": "src/components/stays/stay-catalog-client.tsx",
+      "sha256": "033525f821a4289b194157ae703d8f46b6f68da71b15453dd60f3daadd7ad7c4"
+    },
+    {
+      "path": "src/components/trips/trip-catalog-client.tsx",
+      "sha256": "f5d428c780880bb85a4ee4e6100f24736087d723743beff9d6ecccacb35a1994"
+    },
+    {
+      "path": "src/lib/destinations/public.ts",
+      "sha256": "02d80b6fad9ce4198aaa4bf1b1461e7c025acfc6a93c5cf43bcdec1b33b30e90"
+    },
+    {
+      "path": "src/lib/destinations/types.ts",
+      "sha256": "303f6c143326e3f2e9feec2c772d9bbba70feb146508cb3be1514c2b9506ca4c"
+    },
+    {
+      "path": "supabase/migrations/20261119034051_master_destinations_v1.sql",
+      "sha256": "5ee1fee99919e2a19aa0f34bf2c1847c8548e954b62c93aa3593158edf35842e"
+    },
+    {
+      "path": "supabase/tests/master_destinations_smoke.sql",
+      "sha256": "c811d9a9fbcccd561b72c6d71045ed27f20f844551a044df577745222e7f6984"
+    }
+  ]
+}

@@ -1,9 +1,10 @@
 "use client";
 
+import {DestinationSelect} from "@/components/destinations/destination-select";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CircleAlert, LoaderCircle, MoreVertical, Plus, Save } from "lucide-react";
+import { BadgeCheck, CircleAlert, LoaderCircle, MoreVertical, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeIdPhone } from "@/lib/places/utils";
 
@@ -23,7 +24,6 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
   const [editingId, setEditingId] = useState<string | null>(null);
   const [verificationTime] = useState(Date.now);
   const [message, setMessage] = useState("");
-  const [destination, setDestination] = useState({ name: "", city: "", province: "" });
   const [property, setProperty] = useState({ name: "", destination_id: "", whatsapp_phone: "" });
   const [planDraft, setPlanDraft] = useState(plan ? { premium_monthly_price_idr: String(plan.premium_monthly_price_idr), price_status: plan.price_status, max_units: String(plan.max_units) } : null);
   const supabase = createClient();
@@ -56,14 +56,6 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         </div>
       </details>
     </div>;
-  }
-
-  async function createDestination(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const slug = slugify(destination.name);
-    if (!slug || !destination.name.trim()) return setMessage("Nama destinasi wajib diisi.");
-    await run("destination", () => supabase.from("places_destinations").insert({ slug, name: destination.name.trim(), canonical_name: destination.name.trim(), city: destination.city.trim() || null, province: destination.province.trim() || null, is_active: true }).select().maybeSingle(), "Destinasi ditambahkan.");
-    setDestination({ name: "", city: "", province: "" });
   }
 
   async function createProperty(event: FormEvent<HTMLFormElement>) {
@@ -134,11 +126,11 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
     {message ? <p role="status" className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-[#0A2E63]">{message}</p> : null}
     {loadError ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Data Places belum tersedia. Pastikan migration Places telah diterapkan pada lingkungan non-production.</p> : null}
 
-    <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Destinasi</h2><form onSubmit={createDestination} className="mt-3 grid gap-2 sm:grid-cols-4"><input required maxLength={120} placeholder="Nama destinasi" value={destination.name} onChange={(e)=>setDestination({...destination,name:e.target.value})} className={input}/><input placeholder="Kota" value={destination.city} onChange={(e)=>setDestination({...destination,city:e.target.value})} className={input}/><input placeholder="Provinsi" value={destination.province} onChange={(e)=>setDestination({...destination,province:e.target.value})} className={input}/><button disabled={busy==="destination"} className="mt-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1265D8] px-4 text-xs font-bold text-white disabled:opacity-50"><Plus size={15}/> Tambah destinasi</button></form><div className="mt-3 flex flex-wrap gap-2">{destinations.map((item)=><span key={item.id} className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-700">{item.name}{item.city?` · ${item.city}`:""}</span>)}</div></section>
+    <Link href="/admin/destinations" className="inline-flex min-h-11 items-center text-sm font-bold text-[#1265D8]">Kelola Master Destinasi →</Link>
 
     <section className={card}><h2 className="font-extrabold text-[#0A2E63]">Tambah properti Gratis</h2><p className="mt-1 text-xs text-slate-500">Dengan Verifikasi &amp; Terbitkan, Admin menyatakan telah memeriksa kepemilikan dan kebenaran WhatsApp resmi.</p><form onSubmit={createProperty} className="mt-3 grid gap-3 sm:grid-cols-2">
       <label className="text-xs font-semibold text-slate-600">Nama Properti<input required minLength={2} maxLength={160} className={input} value={property.name} onChange={(e)=>setProperty({...property,name:e.target.value})}/></label>
-      <label className="text-xs font-semibold text-slate-600">Destinasi<select required className={input} value={property.destination_id} onChange={(e)=>setProperty({...property,destination_id:e.target.value})}><option value="">Pilih destinasi</option>{destinations.filter(d=>d.is_active).map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <label className="text-xs font-semibold text-slate-600">Destinasi<DestinationSelect required value={property.destination_id} onChange={v=>setProperty({...property,destination_id:String(v)})}/></label>
       <label className="text-xs font-semibold text-slate-600">Nomor WhatsApp Resmi<input required type="tel" maxLength={40} className={input} placeholder="08… atau +62…" value={property.whatsapp_phone} onChange={(e)=>setProperty({...property,whatsapp_phone:e.target.value})}/></label>
       <button disabled={busy==="property"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white disabled:opacity-50 sm:col-span-2">{busy==="property"?<LoaderCircle size={15} className="animate-spin"/>:<BadgeCheck size={15}/>}Verifikasi &amp; Terbitkan</button>
     </form></section>
@@ -151,7 +143,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         {editingId===item.id ? <div className="border-t border-slate-100 p-4"><button type="button" onClick={()=>setEditingId(null)} className="mb-3 min-h-10 text-xs font-bold text-slate-500">Tutup editor</button>
         <form onSubmit={event=>void saveFreeProperty(event,item.id)} className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs font-semibold text-slate-600">Nama Properti<input name="name" required minLength={2} maxLength={160} defaultValue={item.name} className={input}/></label>
-          <label className="text-xs font-semibold text-slate-600">Destinasi<select name="destination_id" required defaultValue={item.destination_id} className={input}>{destinations.filter(d=>d.is_active||d.id===item.destination_id).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-600">Destinasi<DestinationSelect name="destination_id" required defaultValue={item.destination_id}/></label>
           <label className="text-xs font-semibold text-slate-600">Nomor WhatsApp Resmi<input name="whatsapp_phone" type="tel" required maxLength={40} defaultValue={item.whatsapp_phone} className={input}/></label>
           <p className="text-xs text-slate-500 sm:col-span-3">{item.status==="published"?"Tayang":"Tidak tayang"} · {item.contact_verified_at?"Kontak telah diverifikasi":"Belum diverifikasi"}. Verifikasi &amp; Terbitkan menyatakan Admin telah memeriksa WhatsApp resmi.</p>
           <div className="flex flex-wrap gap-2 sm:col-span-3">
@@ -170,7 +162,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         <label className="text-[10px] font-semibold text-slate-500">Nama<input name="name" required defaultValue={item.name} className={input}/></label>
         <label className="text-[10px] font-semibold text-slate-500">Slug<input name="slug" required defaultValue={item.slug} className={input}/></label>
         <label className="text-[10px] font-semibold text-slate-500">WhatsApp resmi<input name="whatsapp_phone" required defaultValue={item.whatsapp_phone} className={input}/></label>
-        <label className="text-[10px] font-semibold text-slate-500">Destinasi<select name="destination_id" defaultValue={item.destination_id} className={input}>{destinations.map((dest)=><option key={dest.id} value={dest.id}>{dest.name}</option>)}</select></label>
+        <label className="text-[10px] font-semibold text-slate-500">Destinasi<DestinationSelect name="destination_id" required defaultValue={item.destination_id}/></label>
         <label className="text-[10px] font-semibold text-slate-500">Jenis<select name="accommodation_type" defaultValue={item.accommodation_type} className={input}>{options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label className="text-[10px] font-semibold text-slate-500">Status<select name="status" defaultValue={item.status} className={input}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <button disabled={busy===`property-${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 text-xs font-bold text-[#1265D8] disabled:opacity-50 sm:col-span-3"><Save size={14}/> Simpan properti</button>

@@ -1,5 +1,6 @@
 "use client";
 
+import type {ReactNode} from "react";
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -32,7 +33,7 @@ function startingPrivateRate(trip: Trip) {
   return best ? `Mulai Rp${best.price.toLocaleString("id-ID")} / orang · min. ${best.pax} peserta` : null;
 }
 
-export default function TripCatalogClient({ trips, loadError = null }: { trips: Trip[]; loadError?: string | null }) {
+export default function TripCatalogClient({ trips, loadError = null, destinationFilter }: { trips: Trip[]; loadError?: string | null; destinationFilter?:ReactNode }) {
   const [activeCategory, setActiveCategory] = useState<TripCategory>("Semua");
 
   const filteredTrips = useMemo(() => {
@@ -58,6 +59,7 @@ export default function TripCatalogClient({ trips, loadError = null }: { trips: 
           </span>
         </div>
 
+        {destinationFilter}
         <div className="mb-7 flex flex-wrap gap-2">
           {categories.map((category) => {
             const active = activeCategory === category;

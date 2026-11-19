@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
-import StayCatalogClient, { type StayCatalogItem } from "@/components/stays/stay-catalog-client";
-export const revalidate=60;
-export default async function StayPage(){const supabase=await createClient();const {data}=await supabase.from("stay_properties").select("id,slug,name,location,short_description,cover_image_url,facilities,featured,stay_room_types(id,name,capacity,weekday_price,weekend_price,status)").eq("status","published").order("featured",{ascending:false});return <StayCatalogClient properties={(data||[]) as StayCatalogItem[]}/>;}
+import {createClient} from '@/lib/supabase/server';
+import StayCatalogClient,{type StayCatalogItem} from '@/components/stays/stay-catalog-client';
+import {publicDestinations} from '@/lib/destinations/public';
+import {PublicDestinationFilter} from '@/components/destinations/public-destination-filter';
+export const dynamic='force-dynamic';
+export default async function StayPage({searchParams}:{searchParams:Promise<{destination?:string}>}){const params=await searchParams;const selected=typeof params.destination==='string'?params.destination:'';const destinations=await publicDestinations();const destination=destinations.find(d=>d.slug===selected||d.id===selected);const client=await createClient();let query=client.from('stay_properties').select('id,destination_id,slug,name,location,short_description,cover_image_url,facilities,featured,stay_room_types(id,name,capacity,weekday_price,weekend_price,status)').eq('status','published').order('featured',{ascending:false});if(selected)query=query.eq('destination_id',destination?.id||'00000000-0000-0000-0000-000000000000');const {data}=await query;const properties=(data||[]).map(row=>({...row,location:destinations.find(d=>d.id===row.destination_id)?.name||row.location}));return <StayCatalogClient properties={properties as StayCatalogItem[]} destinationFilter={<PublicDestinationFilter destinations={destinations} value={destination?.slug||selected} action="/stay"/>}/>;}

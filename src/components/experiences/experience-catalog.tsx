@@ -1,3 +1,4 @@
+import type {ReactNode} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
@@ -34,13 +35,14 @@ export default function LegacyExperienceCatalog({ type, viewMode, items, error }
 
 const money = (value: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
-export function ExperienceCatalog({ items, categories }: { items: ExperienceCardData[]; categories: { slug: string; name: string }[] }) {
+export function ExperienceCatalog({ items, categories, destinationFilter }: { items: ExperienceCardData[]; categories: { slug: string; name: string }[]; destinationFilter?:ReactNode }) {
   return <main className="mx-auto min-h-dvh max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-8">
     <header className="overflow-hidden rounded-[24px] bg-gradient-to-br from-[#0A2E63] via-[#1265D8] to-[#1B83D6] px-6 py-8 text-white shadow-lg sm:px-9 sm:py-10">
       <p className="text-[10px] font-extrabold tracking-[.2em] text-blue-100">SHIAP EXPERIENCES</p>
       <h1 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight sm:text-4xl">Pengalaman yang dirancang untuk menjelajah lebih dekat.</h1>
       <p className="mt-3 max-w-xl text-sm leading-6 text-white/85">Kelas laut, petualangan, dining, dan momen spesial. Jadwal dan lokasi akan ditampilkan setelah dikonfirmasi operasional.</p>
     </header>
+    {destinationFilter}
     <nav aria-label="Kategori Experience" className="my-5 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none]">
       {categories.map((category) => <a key={category.slug} href={`#${category.slug}`} className="shrink-0 rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-bold text-[#0A2E63] hover:border-[#1974FF]">{category.name}</a>)}
     </nav>

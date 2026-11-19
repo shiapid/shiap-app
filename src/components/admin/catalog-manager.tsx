@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {DestinationSelect} from "@/components/destinations/destination-select";
+import {ServiceDestinationEditor} from "@/components/destinations/service-destination-editor";
 import Image from "next/image";
 import ItineraryBuilder from "@/components/admin/itinerary-builder";
 import TripDeparturesManager from "@/components/admin/trip-departures-manager";
@@ -256,6 +258,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
           check_out_time: form.check_out_time, youtube_tour_url: String(form.youtube_tour_url || "").trim() || null, featured: Boolean(form.featured), status: form.status
         };
       }
+      payload.destination_id=String(form.destination_id||"")||null;
       if (!payload.title && isTrip) throw new Error("Nama paket trip wajib diisi.");
       if (!payload.name && !isTrip) throw new Error("Nama properti wajib diisi.");
       if (!payload.location) throw new Error("Lokasi wajib diisi.");
@@ -389,6 +392,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             <Field label={isTrip ? "Nama paket *" : "Nama properti *"} value={String(isTrip ? form.title : form.name)} onChange={(v) => setField(isTrip ? "title" : "name", v)} required/>
             <Field label="Slug URL" value={String(form.slug)} onChange={(v) => setField("slug", slugify(v))} placeholder="dibuat-otomatis-dari-nama"/>
             <Field label="Lokasi *" value={String(form.location)} onChange={(v) => setField("location", v)} required/>
+            <div className="text-xs font-bold text-slate-600">Destinasi utama<DestinationSelect value={String(form.destination_id||"")} onChange={v=>setField("destination_id",String(v))}/></div>
+            {selected?.id?<div className="sm:col-span-2"><ServiceDestinationEditor domain={isTrip?"trip":"stay"} serviceId={selected.id} onSaved={ids=>{setField("destination_id",ids[0]||"");void loadItems();}}/></div>:null}
             {!isTrip && <Field label="Alamat lengkap" value={String(form.address)} onChange={(v) => setField("address", v)}/>}
             {isTrip ? <>
               <Field label="Durasi" value={String(form.duration)} onChange={(v) => setField("duration", v)} placeholder="3 Hari 2 Malam"/>
