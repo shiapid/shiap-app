@@ -49,14 +49,13 @@ async function evaluate(fn, ...args) {
   return result.result.value;
 }
 async function click(label) {
-  const target = await evaluate((label) => {
-    const button=[...document.querySelectorAll("button")].find((item)=>item.getAttribute("aria-label")===label || item.textContent.trim()===label);
-    button.scrollIntoView({block:"center",behavior:"instant"});
-    const box=button.getBoundingClientRect();
-    return {x:box.x+box.width/2,y:box.y+box.height/2};
-  },label);
-  await cdp("Input.dispatchMouseEvent",{type:"mousePressed",button:"left",clickCount:1,...target});
-  await cdp("Input.dispatchMouseEvent",{type:"mouseReleased",button:"left",clickCount:1,...target});
+  await until(()=>evaluate(label=>{const b=[...document.querySelectorAll("button")].find(item=>item.getAttribute("aria-label")===label||item.textContent.trim()===label);return b&&Object.keys(b).some(k=>k.startsWith('__reactProps$'));},label),'Button hydration missing: '+label);
+  await evaluate(label=>{const b=[...document.querySelectorAll("button")].find(item=>item.getAttribute("aria-label")===label||item.textContent.trim()===label);b.scrollIntoView({block:"center",behavior:"instant"});return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));},label);
+  const target=await evaluate(label=>{const b=[...document.querySelectorAll("button")].find(item=>item.getAttribute("aria-label")===label||item.textContent.trim()===label),box=b.getBoundingClientRect(),x=box.x+box.width/2,y=box.y+box.height/2,hit=document.elementFromPoint(x,y);return {x,y,ready:!!hit&&(hit===b||b.contains(hit)),hit:hit?.tagName};},label);
+  assert.ok(target.ready,'Click target obscured: '+label+' hit='+target.hit);
+  await cdp("Input.dispatchMouseEvent",{type:"mouseMoved",x:target.x,y:target.y});
+  await cdp("Input.dispatchMouseEvent",{type:"mousePressed",button:"left",clickCount:1,x:target.x,y:target.y});
+  await cdp("Input.dispatchMouseEvent",{type:"mouseReleased",button:"left",clickCount:1,x:target.x,y:target.y});
 }
 async function field(selector, value) {
   await evaluate((selector, value) => {

@@ -36,7 +36,7 @@ select set_config('request.jwt.claim.sub','53535353-5353-4353-8353-535353535353'
 do $$begin if exists(select 1 from public.places_billing_invoices) or exists(select 1 from public.places_platform_cash_entries) then raise exception 'cross tenant financial leak';end if;end$$;
 reset role;
 select public.server_submit_places_billing_proof('54545454-5454-4454-8454-545454545454',invoice_id,'52525252-5252-4252-8252-525252525252',invoice_id::text||'/52525252-5252-4252-8252-525252525252/54545454-5454-4454-8454-545454545454.webp',repeat('a',64),100) from billing_fixture;
-do $$begin if exists(select 1 from public.places_billing_invoices where status='SETTLED') or exists(select 1 from public.places_platform_cash_entries) then raise exception 'proof activated payment';end if;end$$;
+do $$begin if exists(select 1 from public.places_billing_invoices where id=(select invoice_id from billing_fixture) and status='SETTLED') or exists(select 1 from public.places_platform_cash_entries where invoice_id=(select invoice_id from billing_fixture)) then raise exception 'proof activated payment';end if;end$$;
 -- Simulate timely proof awaiting review beyond the deadline without altering the proof's arrival time.
 update public.places_billing_invoices set created_at=now()-interval '2 days',deadline_at=now()-interval '1 hour' where id=(select invoice_id from billing_fixture);
 set local role authenticated;select set_config('request.jwt.claim.sub','51515151-5151-4151-8151-515151515151',true);
