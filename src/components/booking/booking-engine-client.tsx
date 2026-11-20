@@ -300,9 +300,23 @@ export default function BookingEngineClient() {
       saveLock.current = true;
       setSavingItem(true);
       try {
-        const { data, error } = await supabase.rpc("quote_stay_nights", {
-          p_room_type_id: roomTypeId, p_check_in: dateStart, p_check_out: dateEnd,
+        const [availability, rates] = await Promise.all([
+          supabase.rpc("quote_stay_availability", { p_room: roomTypeId, p_start: dateStart, p_end: dateEnd }),
+          supabase.rpc("quote_stay_nights", { p_room_type_id: roomTypeId, p_check_in: dateStart, p_check_out: dateEnd }),
+        ]);
+        if (availability.error) {
+          setNotice("Ketersediaan kamar gagal diperiksa. Silakan coba lagi."); return;
+        }
+        const otherStays = cart.filter(item => item.id !== editingItem?.id && item.roomTypeId === roomTypeId);
+        const unavailable = (availability.data ?? []).some((night: { night: string; available: number }) => {
+          const alreadyInCart = otherStays.reduce((sum, item) =>
+            item.dateEnd && item.dateStart <= night.night && item.dateEnd > night.night ? sum + item.quantity : sum, 0);
+          return night.available < quantity + alreadyInCart;
         });
+        if (!availability.data?.length || unavailable) {
+          setNotice("Kamar tidak tersedia untuk semua malam atau jumlah unit yang dipilih. Ubah tanggal atau jumlah unit."); return;
+        }
+        const { data, error } = rates;
         const nights = (data ?? []).map((row: StayRateSnapshot["nights"][number]) => ({ ...row, rate: Number(row.rate) }));
         const subtotal = nights.reduce((sum: number, night: StayRateSnapshot["nights"][number]) => sum + night.rate, 0);
         if (error || !nights.length || nights.some((night: StayRateSnapshot["nights"][number]) => !Number.isFinite(night.rate) || night.rate <= 0) || subtotal * quantity > 999999999999) {

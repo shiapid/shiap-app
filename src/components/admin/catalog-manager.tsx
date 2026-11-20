@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { parseCatalogRupiah } from "@/lib/rupiah-input";
+import { StayRoomInventory } from "@/components/admin/stay-room-inventory";
 import { StaySpecialRates } from "@/components/admin/stay-special-rates";
 import { VendorContactForm } from "@/components/admin/vendor-contact-form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -76,6 +77,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   const [form, setForm] = useState<FormValues>(isTrip ? { ...emptyTrip } : { ...emptyStay });
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [roomForm, setRoomForm] = useState<Record<string, string>>({ ...emptyRoom });
+  const [inventoryRoom, setInventoryRoom] = useState<string | null>(null);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
@@ -364,6 +366,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
     if (!selected?.id) { setError("Simpan properti terlebih dahulu sebelum menambah tipe kamar."); return; }
     const prices = [roomForm.weekday_price, roomForm.weekend_price, roomForm.extra_bed_price, roomForm.extra_guest_price].map(value => parseCatalogRupiah(value));
     if (prices.some(value => value === null)) { setError("Harga kamar wajib berupa Rupiah bulat, minimal Rp0."); return; }
+    if (![roomForm.capacity, roomForm.total_units].every(value => /^[1-9]\d*$/.test(value) && Number(value) <= 2147483647)) { setError("Kapasitas tamu dan jumlah unit harus bilangan bulat minimal 1."); return; }
     setSaving(true); setError("");
     const payload = {
       property_id: selected.id, name: roomForm.name.trim(), description: roomForm.description,
@@ -461,9 +464,12 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
           {showRoomForm && editingRoom && <StaySpecialRates key={editingRoom} roomId={editingRoom}/>}
           <div className="mt-4 space-y-2">
             {rooms.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Belum ada tipe kamar untuk properti ini.</p> : rooms.map((room) => (
-              <div key={room.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+              <div key={room.id} className="rounded-xl border border-slate-100 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-sm font-bold text-[#0A2E63]">{room.name}</p><p className="mt-1 text-xs text-slate-500">{room.capacity} tamu · {room.total_units} unit · Weekday {money(room.weekday_price)} · Weekend {money(room.weekend_price)}</p><span className="mt-1 inline-block text-[10px] text-slate-400">{room.status}</span></div>
-                <div className="flex gap-2"><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit harga</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
+                <div className="flex flex-wrap gap-2"><button type="button" aria-expanded={inventoryRoom === room.id} onClick={() => setInventoryRoom(current => current === room.id ? null : room.id)} className="min-h-11 rounded-lg border border-blue-100 px-3 text-xs font-bold text-[#1265D8]">Ketersediaan</button><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit harga</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
+                </div>
+                {inventoryRoom === room.id && <StayRoomInventory key={room.total_units} roomId={room.id} roomName={room.name}/>}
               </div>
             ))}
           </div>
