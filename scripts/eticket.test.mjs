@@ -19,7 +19,8 @@ test("opaque ticket QR contains only the credential and decodes as a real QR", a
     const offset = pixel * 4;
     luminance[pixel] = Math.round((png.data[offset] * 299 + png.data[offset + 1] * 587 + png.data[offset + 2] * 114) / 1000);
   }
-  const hints = new Map([[DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]]]);
+  // A generated PNG has no perspective or camera noise. Decode its modules directly.
+  const hints = new Map([[DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]], [DecodeHintType.PURE_BARCODE, true]]);
   const decoded = new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(luminance, png.width, png.height))), hints).getText();
   assert.equal(decoded, payload);
 });
