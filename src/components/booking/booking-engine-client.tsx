@@ -20,6 +20,7 @@ import {
   serviceLabels,
   type BookingCustomer,
   type BookingItem,
+  type StayRateSnapshot,
   type BookingServiceType,
 } from "@/lib/booking-engine";
 
@@ -118,7 +119,7 @@ export default function BookingEngineClient() {
         const experienceId = params.get("service");
         if (requestedDate && active) setDateStart(requestedDate);
         if (requestedPax > 0 && active) setGuests(requestedPax);
-        if (experienceId) {
+        if (experienceId && !staySlug) {
           const selectedExperience = loadedExperiences.find((item) => item.id === experienceId);
           if (!active) return;
           if (selectedExperience) {
@@ -194,16 +195,13 @@ export default function BookingEngineClient() {
     let subtotal = 0;
     if (item.unitPrice == null) return { category: item.serviceType, subtotal };
     if (item.serviceType === "trip") subtotal = item.unitPrice * item.guests * item.quantity;
-    else if (item.serviceType === "stay" && item.dateEnd) {
-      const nights = Math.max(1, Math.round((new Date(`${item.dateEnd}T12:00:00`).getTime() - new Date(`${item.dateStart}T12:00:00`).getTime()) / 86400000));
-      subtotal = item.unitPrice * nights * item.quantity;
-    }
+    else if (item.serviceType === "stay") subtotal = (item.stayRate?.subtotal ?? 0) * item.quantity;
     else if (item.priceBasis === "per_person") subtotal = item.unitPrice * item.guests * item.quantity;
     else subtotal = item.unitPrice * item.quantity;
     return { category: item.serviceType, subtotal: Math.round(subtotal) };
   }), [cart]);
   const feeQuote = useServiceFeeQuote(feeSubtotals);
-  const hasUnpricedItems = cart.some((item) => item.unitPrice == null || item.unitPrice <= 0);
+  const hasUnpricedItems = cart.some((item) => item.serviceType === "stay" ? !item.stayRate : item.unitPrice == null || item.unitPrice <= 0);
 
   function resetItemForm(type: BookingServiceType, item?: BookingItem) {
     const trip = tripOptions.find((option) => option.id === item?.tripId);
@@ -278,6 +276,7 @@ export default function BookingEngineClient() {
     }
 
     let unitPrice: number | undefined;
+    let stayRate: StayRateSnapshot | undefined;
     if (serviceType === "trip" && tripId && variant === "Open Trip") {
       unitPrice = departureOptions.find((departure) => departure.id === departureId)?.price_per_person ?? undefined;
     } else if (serviceType === "trip" && tripId && variant === "Private Trip") {
@@ -298,14 +297,24 @@ export default function BookingEngineClient() {
         setSavingItem(false);
       }
     } else if (serviceType === "stay" && roomTypeId && dateEnd) {
-      const room = roomOptions.find((candidate) => candidate.id === roomTypeId);
-      if (room) {
-        let nightsTotal = 0;
-        for (let day = new Date(`${dateStart}T12:00:00`); day < new Date(`${dateEnd}T12:00:00`); day.setDate(day.getDate() + 1)) {
-          const dayOfWeek = day.getDay();
-          nightsTotal += dayOfWeek === 0 || dayOfWeek === 6 ? room.weekend_price : room.weekday_price;
+      saveLock.current = true;
+      setSavingItem(true);
+      try {
+        const { data, error } = await supabase.rpc("quote_stay_nights", {
+          p_room_type_id: roomTypeId, p_check_in: dateStart, p_check_out: dateEnd,
+        });
+        const nights = (data ?? []).map((row: StayRateSnapshot["nights"][number]) => ({ ...row, rate: Number(row.rate) }));
+        const subtotal = nights.reduce((sum: number, night: StayRateSnapshot["nights"][number]) => sum + night.rate, 0);
+        if (error || !nights.length || nights.some((night: StayRateSnapshot["nights"][number]) => !Number.isFinite(night.rate) || night.rate <= 0) || subtotal * quantity > 999999999999) {
+          setNotice("Tarif Stay belum tersedia untuk tanggal, durasi, atau jumlah yang dipilih."); return;
         }
-        if (nightsTotal > 0) unitPrice = Math.ceil(nightsTotal / Math.max(1, Math.round((new Date(`${dateEnd}T12:00:00`).getTime() - new Date(`${dateStart}T12:00:00`).getTime()) / 86400000)));
+        stayRate = { nights, subtotal };
+        unitPrice = subtotal / nights.length;
+      } catch {
+        setNotice("Tarif Stay gagal dimuat. Silakan coba lagi."); return;
+      } finally {
+        saveLock.current = false;
+        setSavingItem(false);
       }
     } else if (selectedExperience) {
       unitPrice = Number(selectedExperience.base_price) + selectedExperience.addons.filter((addon) => selectedAddonIds.includes(addon.id)).reduce((sum, addon) => sum + Number(addon.price), 0);
@@ -326,6 +335,7 @@ export default function BookingEngineClient() {
       guests: Math.max(1, guests),
       priceStatus: "unquoted",
       unitPrice,
+      stayRate,
       notes: itemNotes.trim() || undefined,
       tripId: serviceType === "trip" ? tripId || undefined : undefined,
       departureId: serviceType === "trip" ? departureId || undefined : undefined,
@@ -386,6 +396,7 @@ export default function BookingEngineClient() {
         departure_id: item.departureId || null,
         property_id: item.propertyId || null,
         room_type_id: item.roomTypeId || null,
+        ...(item.stayRate ? { expected_stay_subtotal: item.stayRate.subtotal } : {}),
       }));
       const createdId = await checkoutBooking("booking", {
         p_customer_name: customer.name.trim(),
@@ -587,7 +598,17 @@ export default function BookingEngineClient() {
                       </p>
                       {item.selectedAddons?.map((addon) => <p key={addon.id} className="text-xs text-orange-800">+ {addon.name} ({formatRupiah(addon.price)})</p>)}
                       {item.notes && <p className="text-xs text-slate-600">{item.notes}</p>}
-                      <p className="mt-0.5 text-xs font-semibold text-[#0A2E63]">{formatRupiah(item.unitPrice)}{item.priceUnitLabel ? ` / ${item.priceBasis === "per_person" ? "orang" : item.priceUnitLabel}` : ""}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-[#0A2E63]">{formatRupiah(item.stayRate ? item.stayRate.subtotal * item.quantity : item.unitPrice)}{item.priceUnitLabel ? ` / ${item.priceBasis === "per_person" ? "orang" : item.priceUnitLabel}` : ""}</p>
+                      {item.stayRate && <details className="mt-1 text-xs text-slate-600">
+                        <summary className="cursor-pointer font-semibold">Rincian {item.stayRate.nights.length} malam · {item.quantity} unit</summary>
+                        <ul className="mt-1 max-h-44 space-y-1 overflow-y-auto">
+                          {item.stayRate.nights.map(night => <li key={night.night} className="flex flex-wrap justify-between gap-x-2">
+                            <span>{night.night} · {{ weekday: "Weekday", weekend: "Weekend", special: "Tanggal khusus" }[night.rate_kind]}</span>
+                            <span>{formatRupiah(night.rate)} / unit</span>
+                          </li>)}
+                        </ul>
+                      </details>}
+                      {item.serviceType === "stay" && !item.stayRate && <p className="text-xs text-amber-800">Edit pilihan Stay untuk memuat tarif per malam.</p>}
                     </div>
                     <div className="flex shrink-0">
                       <button type="button" onClick={() => editItem(item)} disabled={!loaded || savingItem || submitting} aria-label={`Edit ${item.serviceName}`} className="grid size-11 place-items-center rounded-lg text-[#1265D8] hover:bg-blue-50 disabled:opacity-60"><Pencil aria-hidden size={16} /></button>

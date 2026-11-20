@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { parseCatalogRupiah } from "@/lib/rupiah-input";
+import { StaySpecialRates } from "@/components/admin/stay-special-rates";
 import { VendorContactForm } from "@/components/admin/vendor-contact-form";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -219,6 +221,11 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       let payload: Record<string, unknown>;
       if (isTrip) {
         let itinerary: unknown;
+        const basePrice = form.base_price === "" || form.base_price == null ? null : parseCatalogRupiah(form.base_price);
+        const minimumPrice = parseCatalogRupiah(form.minimum_package_price || 0);
+        if ((basePrice === null && form.base_price !== "" && form.base_price != null) || minimumPrice === null) {
+          throw new Error("Harga paket wajib berupa Rupiah bulat.");
+        }
         let priceTiers: unknown;
         try { itinerary = JSON.parse(String(form.itinerary || "[]")); }
         catch { throw new Error("Format itinerary harus JSON yang valid."); }
@@ -226,13 +233,13 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
         catch { throw new Error("Format price tiers harus JSON yang valid."); }
         if (!Array.isArray(priceTiers)) throw new Error("Price tiers harus berupa daftar/rangkaian tier.");
         if (form.pricing_model === "private_tiered") {
-          if (Number(form.minimum_package_price || 0) <= 0) throw new Error("Minimum pembayaran paket Private Trip harus lebih dari 0.");
+          if (parseCatalogRupiah(form.minimum_package_price, 1) === null) throw new Error("Minimum pembayaran paket Private Trip harus lebih dari 0.");
           if (priceTiers.length === 0) throw new Error("Tambahkan minimal satu tier harga Private Trip.");
           const tiers = (priceTiers as unknown[]).filter(isRecord) as PriceTierInput[];
           const sorted = [...tiers].sort((a, b) => Number(a.min_pax) - Number(b.min_pax));
           for (let i = 0; i < sorted.length; i++) {
             const tier = sorted[i];
-            if (Number(tier.min_pax) < 1 || Number(tier.max_pax) < Number(tier.min_pax) || Number(tier.price_per_person ?? tier.price_per_pax) <= 0) throw new Error("Rentang dan harga tier tidak valid. Gunakan min_pax, max_pax, dan price_per_person.");
+            if (Number(tier.min_pax) < 1 || Number(tier.max_pax) < Number(tier.min_pax) || parseCatalogRupiah(tier.price_per_person ?? tier.price_per_pax, 1) === null) throw new Error("Rentang dan harga tier tidak valid. Gunakan min_pax, max_pax, dan price_per_person.");
             if (i > 0 && Number(tier.min_pax) <= Number(sorted[i - 1].max_pax)) throw new Error("Rentang tier harga tidak boleh tumpang tindih.");
           }
         }
@@ -241,9 +248,9 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
           location: String(form.location).trim(), categories: String(form.categories).split(",").map((v) => v.trim()).filter(Boolean),
           trip_modes: String(form.trip_modes).split(",").map((v) => v.trim()).filter(Boolean),
           duration: form.duration, short_description: form.short_description, description: form.description,
-          pricing_model: form.pricing_model, base_price: form.base_price === "" ? null : Number(form.base_price),
+          pricing_model: form.pricing_model, base_price: basePrice,
           min_pax: form.min_pax === "" ? null : Number(form.min_pax), max_pax: form.max_pax === "" ? null : Number(form.max_pax),
-          price_tiers: priceTiers, minimum_package_price: Number(form.minimum_package_price || 0), youtube_tour_url: String(form.youtube_tour_url || "").trim() || null, status: form.status, featured: Boolean(form.featured),
+          price_tiers: priceTiers, minimum_package_price: minimumPrice, youtube_tour_url: String(form.youtube_tour_url || "").trim() || null, status: form.status, featured: Boolean(form.featured),
           cover_image_url: form.cover_image_url || null, gallery_urls: lines(String(form.gallery_urls)),
           highlights: lines(String(form.highlights)), itinerary, included: lines(String(form.included)),
           excluded: lines(String(form.excluded)), meeting_point: form.meeting_point,
@@ -313,12 +320,14 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   async function saveRoom(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected?.id) { setError("Simpan properti terlebih dahulu sebelum menambah tipe kamar."); return; }
+    const prices = [roomForm.weekday_price, roomForm.weekend_price, roomForm.extra_bed_price, roomForm.extra_guest_price].map(value => parseCatalogRupiah(value));
+    if (prices.some(value => value === null)) { setError("Harga kamar wajib berupa Rupiah bulat, minimal Rp0."); return; }
     setSaving(true); setError("");
     const payload = {
       property_id: selected.id, name: roomForm.name.trim(), description: roomForm.description,
       capacity: Number(roomForm.capacity), total_units: Number(roomForm.total_units),
-      weekday_price: Number(roomForm.weekday_price), weekend_price: Number(roomForm.weekend_price),
-      extra_bed_price: Number(roomForm.extra_bed_price), extra_guest_price: Number(roomForm.extra_guest_price),
+      weekday_price: prices[0], weekend_price: prices[1],
+      extra_bed_price: prices[2], extra_guest_price: prices[3],
       facilities: lines(roomForm.facilities), gallery_urls: lines(roomForm.gallery_urls), youtube_tour_url: roomForm.youtube_tour_url.trim() || null, status: roomForm.status
     };
     const query = editingRoom
@@ -529,8 +538,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             <Field label="Nama tipe kamar *" value={roomForm.name} onChange={(v) => setRoomForm((s) => ({ ...s, name: v }))} required/>
             <Field label="Kapasitas tamu" type="number" value={roomForm.capacity} onChange={(v) => setRoomForm((s) => ({ ...s, capacity: v }))}/>
             <Field label="Jumlah unit" type="number" value={roomForm.total_units} onChange={(v) => setRoomForm((s) => ({ ...s, total_units: v }))}/>
-            <Field label="Harga weekday (IDR)" type="number" value={roomForm.weekday_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekday_price: v }))}/>
-            <Field label="Harga weekend (IDR)" type="number" value={roomForm.weekend_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekend_price: v }))}/>
+            <Field label="Harga Weekday · Senin–Kamis (IDR)" type="number" value={roomForm.weekday_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekday_price: v }))}/>
+            <Field label="Harga Weekend · Jumat–Minggu (IDR)" type="number" value={roomForm.weekend_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekend_price: v }))}/>
             <Field label="Harga extra bed (IDR)" type="number" value={roomForm.extra_bed_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_bed_price: v }))}/>
             <Field label="Harga extra guest (IDR)" type="number" value={roomForm.extra_guest_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_guest_price: v }))}/>
             <TextAreaField label="Deskripsi" value={roomForm.description} onChange={(v) => setRoomForm((s) => ({ ...s, description: v }))} rows={2}/>
@@ -540,6 +549,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             <TextAreaField label="Daftar foto kamar (URL otomatis / manual)" value={roomForm.gallery_urls} onChange={(v) => setRoomForm((s) => ({ ...s, gallery_urls: v }))} rows={2}/>
             <div className="flex items-center gap-2 sm:col-span-2"><button disabled={saving} className="rounded-xl bg-[#1974FF] px-4 py-2.5 text-xs font-bold text-white">Simpan tipe kamar</button><button type="button" onClick={() => setShowRoomForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold">Batal</button></div>
           </form>}
+          {showRoomForm && editingRoom && <StaySpecialRates key={editingRoom} roomId={editingRoom}/>}
           <div className="mt-4 space-y-2">
             {rooms.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Belum ada tipe kamar untuk properti ini.</p> : rooms.map((room) => (
               <div key={room.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
@@ -558,7 +568,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
 function Field({ label, value, onChange, type = "text", placeholder, required = false }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean;
 }) {
-  return <label className="block text-xs font-semibold text-slate-600">{label}<input type={type} required={required} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-[#0A2E63] outline-none transition focus:border-[#1974FF]"/></label>;
+  return <label className="block text-xs font-semibold text-slate-600">{label}<input type={type} min={type === "number" ? 0 : undefined} step={type === "number" ? 1 : undefined} required={required} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-[#0A2E63] outline-none transition focus:border-[#1974FF]"/></label>;
 }
 function SelectField({ label, value, onChange, options }: {
   label: string; value: string; onChange: (v: string) => void; options: [string,string][];

@@ -1,3 +1,4 @@
+import { parseCatalogRupiah } from "@/lib/rupiah-input";
 import { revalidatePath } from "next/cache";
 import { requireApiAdmin } from "@/lib/admin/api-guard";
 import { bookingAdmin } from "@/lib/supabase/booking-admin";
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
     const date = typeof body.departure_date === "string" ? body.departure_date : "";
     const endDate = typeof body.end_date === "string" && body.end_date ? body.end_date : null;
     const time = typeof body.departure_time === "string" && body.departure_time ? body.departure_time : null;
-    const price = body.price_per_person === null || body.price_per_person === "" ? null : Number(body.price_per_person);
+    const hasPrice = body.price_per_person != null && body.price_per_person !== "";
+    const price = hasPrice ? parseCatalogRupiah(body.price_per_person) : null;
     const minimum = Number(body.min_participants);
     const maximum = Number(body.max_participants);
     const status = body.status;
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     const meetingPoint = typeof body.meeting_point === "string" ? body.meeting_point.trim() : "";
     const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value + "T00:00:00Z")) && new Date(value + "T00:00:00Z").toISOString().slice(0,10) === value;
     if (!uuidPattern.test(tripId) || !validDate(date) || (endDate && (!validDate(endDate) || endDate < date))
-      || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) || (price !== null && (!Number.isFinite(price) || price < 0))
+      || (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) || (hasPrice && price === null)
       || !Number.isSafeInteger(minimum) || minimum < 1 || !Number.isSafeInteger(maximum) || maximum < minimum
       || !["draft", "open", "full", "cancelled"].includes(String(status)) || notes.length > 2000 || meetingPoint.length > 500) {
       throw new BookingError("Tanggal, harga, kapasitas, status, atau detail jadwal tidak valid.");

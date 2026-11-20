@@ -191,11 +191,11 @@ begin
     jsonb_build_array(jsonb_build_object('service_type','stay','service_name','Smoke Stay','variant','Smoke Room',
       'date_start',(current_date+100)::text,'date_end',(current_date+102)::text,'quantity',1,'guests',2,'property_id',property,'room_type_id',room))
   ) r;
-  select sum(case when extract(isodow from d)::integer in(6,7) then 200 else 100 end) into night_total
+  select sum(case when extract(isodow from d)::integer in(5,6,7) then 200 else 100 end) into night_total
   from generate_series(current_date+100,current_date+101,interval '1 day') d;
   select i.unit_price into item_price from public.booking_items i where i.booking_id=booking;
   select b.total_amount into amount from public.booking_orders b where b.id=booking;
-  if item_price<>ceil(night_total/2) or amount<>night_total then
+  if item_price<>round(night_total/2,2) or amount<>night_total then
     raise exception 'Stay pricing failed: nightly %, unit %, total %',night_total,item_price,amount;
   end if;
   begin

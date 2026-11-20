@@ -8,6 +8,9 @@ export type BookingServiceType =
 
 export type BookingPriceStatus = "unquoted" | "quoted" | "confirmed";
 
+export type StayNight = { night: string; rate: number; rate_kind: "weekday" | "weekend" | "special" };
+export type StayRateSnapshot = { subtotal: number; nights: StayNight[] };
+
 export type BookingItem = {
   id: string;
   serviceType: BookingServiceType;
@@ -23,6 +26,7 @@ export type BookingItem = {
   quantity: number;
   guests: number;
   unitPrice?: number;
+  stayRate?: StayRateSnapshot;
   priceStatus: BookingPriceStatus;
   notes?: string;
   tripId?: string;
