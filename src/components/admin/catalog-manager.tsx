@@ -1,7 +1,9 @@
 "use client";
 
 import { parseCatalogRupiah } from "@/lib/rupiah-input";
-import { StayRoomInventory } from "@/components/admin/stay-room-inventory";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { stayHref, type StayContext } from "@/lib/admin/stay-navigation";
 import { StaySpecialRates } from "@/components/admin/stay-special-rates";
 import { VendorContactForm } from "@/components/admin/vendor-contact-form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,22 +70,19 @@ function money(value: number | string | null | undefined) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value));
 }
 
-export default function CatalogManager({ mode }: { mode: Mode }) {
+export default function CatalogManager({ mode, roomProperty, stayContext }: { mode: Mode; roomProperty?: { id: string; name: string }; stayContext?: StayContext }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const isTrip = mode === "trips";
   const table = isTrip ? "trip_packages" : "stay_properties";
   const [items, setItems] = useState<RowData[]>([]);
-  const [selected, setSelected] = useState<RowData | null>(null);
+  const [selected, setSelected] = useState<RowData | null>(roomProperty ?? null);
   const [form, setForm] = useState<FormValues>(isTrip ? { ...emptyTrip } : { ...emptyStay });
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [roomForm, setRoomForm] = useState<Record<string, string>>({ ...emptyRoom });
-  const [inventoryRoom, setInventoryRoom] = useState<string | null>(null);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
-  const [showRoomPanel, setShowRoomPanel] = useState(false);
-  const roomPanelRef = useRef<HTMLElement>(null);
-  const roomPanelButtonRef = useRef<HTMLButtonElement>(null);
   const roomRequest = useRef(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -114,44 +113,15 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   useEffect(() => {
     // loadItems updates state after its Supabase request completes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadItems();
-  }, [loadItems]);
+    if (!roomProperty) void loadItems();
+  }, [loadItems, roomProperty]);
   useEffect(() => {
-    if (!isTrip && selected?.id) {
+    if (roomProperty && selected?.id) {
       // loadRooms updates state after its Supabase request completes.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadRooms(selected.id);
     }
-  }, [isTrip, selected?.id, loadRooms]);
-
-  useEffect(() => {
-    if (showRoomPanel) focusRoomPanel();
-  }, [showRoomPanel, selected?.id]);
-
-  function focusRoomPanel() {
-    roomPanelRef.current?.focus({ preventScroll: true });
-    roomPanelRef.current?.scrollIntoView({ block: "start" });
-  }
-
-  function openRooms(item: RowData) {
-    if (item.id !== selected?.id) {
-      roomRequest.current++;
-      setSelected(item);
-      setRooms([]);
-      setEditingRoom(null);
-      setShowRoomForm(false);
-      setShowForm(false);
-    }
-    setShowRoomPanel(true);
-    if (showRoomPanel && item.id === selected?.id) focusRoomPanel();
-  }
-
-  function closeRooms() {
-    setShowRoomPanel(false);
-    setShowRoomForm(false);
-    setEditingRoom(null);
-    roomPanelButtonRef.current?.focus();
-  }
+  }, [roomProperty, selected?.id, loadRooms]);
 
   const filtered = items.filter((item) => {
     const name = String(isTrip ? item.title : item.name);
@@ -160,7 +130,6 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   });
 
   function startNew() {
-    closeRooms();
     roomRequest.current++;
     setSelected(null);
     setRooms([]);
@@ -169,7 +138,6 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   }
 
   function startEdit(item: RowData) {
-    closeRooms();
     if (selected?.id !== item.id) {
       roomRequest.current++;
       setRooms([]);
@@ -322,8 +290,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       const { error: saveError } = await query;
       if (saveError) throw saveError;
       setNotice(isTrip ? "Paket trip berhasil disimpan." : "Listing properti berhasil disimpan.");
-      closeRooms();
       setShowForm(false); setSelected(null); await loadItems();
+      if (!isTrip) router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Data gagal disimpan."); }
     finally { setSaving(false); }
   }
@@ -396,14 +364,15 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
     else if (selected?.id) await loadRooms(selected.id);
   }
 
-  const title = isTrip ? "Trip Management" : "Stay Management";
+  const title = isTrip ? "Trip Management" : "Daftar properti Stay";
   const subtitle = isTrip
     ? "Buat dan kelola paket Open Trip, Private Trip, snorkeling, dan island hopping."
-    : "Kelola listing properti, tipe kamar, kapasitas, dan harga menginap.";
+    : "Kelola listing, fasilitas, dan status publikasi.";
   const activeCount = items.filter((v) => v.status === "published").length;
 
   return (
     <div className="space-y-6">
+      {!roomProperty && <>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#1974FF]">SHIAP CATALOG</p>
@@ -430,11 +399,13 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
         </div>
       </div>
 
+      </>}
+
       {notice && <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      {!isTrip && selected && showRoomPanel && (
-        <section id="stay-room-rates" ref={roomPanelRef} tabIndex={-1} aria-labelledby="stay-room-rates-heading" className="scroll-mt-24 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
+      {roomProperty && selected && (
+        <section id="stay-room-rates" aria-labelledby="stay-room-rates-heading" className="scroll-mt-24 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 id="stay-room-rates-heading" className="text-lg font-bold text-[#0A2E63]">Harga &amp; Tipe Kamar</h2>
@@ -443,7 +414,6 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             </div>
             <div className="flex flex-wrap gap-2">
             <button onClick={() => { setShowRoomForm(true); setEditingRoom(null); setRoomForm({ ...emptyRoom }); }} className="inline-flex items-center gap-2 rounded-xl bg-[#1974FF] px-3 py-2.5 text-xs font-bold text-white"><CirclePlus size={15}/> Tambah tipe kamar</button>
-              <button type="button" onClick={closeRooms} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600">Tutup panel harga</button>
             </div>
           </div>
           {showRoomForm && <form onSubmit={saveRoom} className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
@@ -467,16 +437,15 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
               <div key={room.id} className="rounded-xl border border-slate-100 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-sm font-bold text-[#0A2E63]">{room.name}</p><p className="mt-1 text-xs text-slate-500">{room.capacity} tamu · {room.total_units} unit · Weekday {money(room.weekday_price)} · Weekend {money(room.weekend_price)}</p><span className="mt-1 inline-block text-[10px] text-slate-400">{room.status}</span></div>
-                <div className="flex flex-wrap gap-2"><button type="button" aria-expanded={inventoryRoom === room.id} onClick={() => setInventoryRoom(current => current === room.id ? null : room.id)} className="min-h-11 rounded-lg border border-blue-100 px-3 text-xs font-bold text-[#1265D8]">Ketersediaan</button><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit harga</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
+                <div className="flex flex-wrap gap-2"><Link href={stayHref("calendar", { ...stayContext, property: room.property_id, room: room.id })} className="inline-flex min-h-11 items-center rounded-lg border border-blue-100 px-3 text-xs font-bold text-[#1265D8]">Ketersediaan</Link><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit harga</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
                 </div>
-                {inventoryRoom === room.id && <StayRoomInventory key={room.total_units} roomId={room.id} roomName={room.name}/>}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {showForm && (
+      {!roomProperty && showForm && (
         <>
         <form onSubmit={saveItem} className="space-y-5 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3">
@@ -486,9 +455,9 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
               {!isTrip && !selected && <p className="mt-1 text-xs text-slate-500">Simpan properti untuk mulai menambahkan tipe kamar dan tarifnya.</p>}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {!isTrip && selected && <button ref={roomPanelButtonRef} type="button" aria-controls={showRoomPanel ? "stay-room-rates" : undefined} aria-expanded={showRoomPanel} onClick={() => openRooms(selected)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-100">
-                <BedDouble size={15} aria-hidden/> Harga &amp; Tipe Kamar
-              </button>}
+              {!isTrip && selected && <Link href={stayHref("rooms", { ...stayContext, property: selected.id, room: undefined })} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-100">
+                <BedDouble size={15} aria-hidden/> Kamar &amp; Tarif
+              </Link>}
               <button type="button" aria-label="Tutup editor" onClick={() => setShowForm(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18}/></button>
             </div>
           </div>
@@ -575,6 +544,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
         </>
       )}
 
+      {!roomProperty && <>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-bold text-[#0A2E63]">Daftar {isTrip ? "Paket Trip" : "Properti"}</h2>
@@ -608,7 +578,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
                     <p className="mt-2 text-xs font-semibold text-[#1974FF]">{isTrip ? money(item.base_price) : item.property_type}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button onClick={() => startEdit(item)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-[#0A2E63]"><Pencil size={12}/> Edit</button>
-                      {!isTrip && <button onClick={() => openRooms(item)} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><BedDouble size={12}/> Harga &amp; Tipe Kamar</button>}
+                      {!isTrip && <Link href={stayHref("rooms", { ...stayContext, property: item.id, room: undefined })} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><BedDouble size={12}/> Kamar &amp; Tarif</Link>}
+                      {!isTrip && <Link href={stayHref("calendar", { ...stayContext, property: item.id, room: undefined })} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 px-2.5 py-1.5 text-[10px] font-bold text-[#1265D8]"><CalendarDays size={12}/> Kalender Stay</Link>}
                       {isTrip && <button onClick={() => { setSelected(item); setShowForm(false); }} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><CalendarDays size={12}/> Jadwal</button>}
                       {item.status !== "archived" && <button onClick={() => void archiveItem(item)} className="inline-flex items-center gap-1 rounded-lg border border-orange-100 px-2.5 py-1.5 text-[10px] font-bold text-orange-700"><Archive size={12}/> Arsipkan</button>}
                     </div>
@@ -623,6 +594,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       {isTrip && selected && !showForm && <TripDeparturesManager tripId={selected.id} tripName={String(selected.title ?? "")}/> }
 
       <p className="text-[11px] leading-5 text-slate-400">Foto cover dan galeri dapat diunggah langsung ke Supabase Storage. Video tour menggunakan URL YouTube dan ditampilkan sebagai player pada halaman detail pelanggan.</p>
+      </>}
     </div>
   );
 }

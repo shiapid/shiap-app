@@ -1,16 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { globalStayCalendarHref, stayHref } from "@/lib/admin/stay-navigation";
 import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, LockKeyhole, Plus, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type ServiceType = "trip" | "stay" | "activity" | "documentation";
-type CalendarBookingItem = { id: string; service_type: ServiceType; service_name: string; date_start: string; date_end: string | null; guests: number; quantity: number };
+type CalendarBookingItem = { id: string; service_type: ServiceType; service_name: string; date_start: string; date_end: string | null; guests: number; quantity: number; property_id?: string | null; room_type_id?: string | null };
 export type CalendarBookingRecord = { id: string; order_number: string; customer_name: string; order_status: string; payment_status: string; booking_items: CalendarBookingItem[] };
 export type CalendarBlockRecord = { id: string; service_type: ServiceType; service_id: string | null; start_date: string; end_date: string; reason: string; created_at: string };
 type ServiceOption = { id: string; title: string; location?: string };
 type Catalogs = { trip: ServiceOption[]; stay: ServiceOption[]; activity: ServiceOption[]; documentation: ServiceOption[] };
-type CalendarEvent = { id: string; kind: "booking" | "block"; serviceType: ServiceType; title: string; startDate: string; endDate: string; subtitle: string; orderNumber?: string; customerName?: string; blockId?: string; reason?: string };
+type CalendarEvent = { id: string; kind: "booking" | "block"; serviceType: ServiceType; title: string; startDate: string; endDate: string; subtitle: string; orderNumber?: string; customerName?: string; blockId?: string; reason?: string; status?: string; propertyId?: string | null; roomId?: string | null };
+type StayReservation = { item_id: string; order_number: string; property_id: string; room_id: string; room_name: string; property_name: string; starts_on: string; ends_before: string; units: number; held: boolean };
+type StayRoomBlock = { id: string; room_type_id: string; starts_on: string; ends_on: string; blocked_units: number | null; reason: string; stay_room_types: { name: string; property_id: string; stay_properties: { name: string } } };
 
 const categoryLabels: Record<ServiceType, string> = { trip: "Trip", stay: "Stay", activity: "Wahana", documentation: "Shinema" };
 const categoryColors: Record<ServiceType, string> = { trip: "bg-blue-100 text-blue-900", stay: "bg-emerald-100 text-emerald-900", activity: "bg-cyan-100 text-cyan-900", documentation: "bg-violet-100 text-violet-900" };
@@ -19,11 +23,12 @@ const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() 
 function shiftDate(value: string, amount: number) { const [year, month, day] = value.split("-").map(Number); const date = new Date(year, month - 1, day + amount); return dateKey(date); }
 function formatDate(value: string, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) { const [year, month, day] = value.split("-").map(Number); return new Intl.DateTimeFormat("id-ID", options).format(new Date(year, month - 1, day)); }
 
-export default function BookingCalendar({ bookings, initialBlocks, catalogs }: { bookings: CalendarBookingRecord[]; initialBlocks: CalendarBlockRecord[]; catalogs: Catalogs }) {
+export default function BookingCalendar({ bookings, initialBlocks, catalogs, stayOnly, stayProperty, stayRoom, initialDate }: { bookings: CalendarBookingRecord[]; initialBlocks: CalendarBlockRecord[]; catalogs: Catalogs; stayOnly: boolean; stayProperty?: string; stayRoom?: string; initialDate: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [blocks, setBlocks] = useState<CalendarBlockRecord[]>(initialBlocks);
-  const [month, setMonth] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), 1); });
-  const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
+  const [month, setMonth] = useState(() => new Date(Number(initialDate.slice(0, 4)), Number(initialDate.slice(5, 7)) - 1, 1));
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [stayEvents, setStayEvents] = useState<{ rangeStart: string; rows: CalendarEvent[]; error: boolean }>();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -35,8 +40,42 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
   const [blockEnd, setBlockEnd] = useState(dateKey(new Date()));
   const [blockReason, setBlockReason] = useState("");
 
+  const rangeStart = shiftDate(dateKey(month), -7);
+  const rangeEnd = shiftDate(dateKey(new Date(month.getFullYear(), month.getMonth() + 1, 1)), 7);
+  const staySnapshot = stayEvents?.rangeStart === rangeStart ? stayEvents : undefined;
+
+  useEffect(() => {
+    let current = true;
+    void Promise.all([
+      supabase.rpc("admin_stay_calendar_reservations", { p_start: rangeStart, p_end: rangeEnd }),
+      supabase.from("stay_room_inventory_blocks")
+        .select("id,room_type_id,starts_on,ends_on,blocked_units,reason,stay_room_types!inner(name,property_id,stay_properties(name))")
+        .lt("starts_on", rangeEnd).gte("ends_on", rangeStart),
+    ]).then(([reservations, roomBlocks]) => {
+      if (!current) return;
+      setStayEvents({ rangeStart, error: Boolean(reservations.error || roomBlocks.error), rows: [
+        ...((reservations.data ?? []) as StayReservation[]).map((row): CalendarEvent => ({
+          id: `stay:${row.item_id}`, kind: "booking", serviceType: "stay",
+          propertyId: row.property_id, roomId: row.room_id, title: `${row.property_name} · ${row.room_name}`,
+          startDate: row.starts_on, endDate: shiftDate(row.ends_before, -1), subtitle: `${row.units} unit`,
+          orderNumber: row.order_number, status: row.held ? "Hold aktif" : "Dikonfirmasi",
+        })),
+        ...((roomBlocks.data ?? []) as unknown as StayRoomBlock[]).map((row): CalendarEvent => ({
+          id: `room-block:${row.id}`, kind: "block", serviceType: "stay", title: `${row.stay_room_types.stay_properties.name} · ${row.stay_room_types.name}`,
+          propertyId: row.stay_room_types.property_id, roomId: row.room_type_id,
+          startDate: row.starts_on, endDate: row.ends_on, reason: row.reason,
+          subtitle: row.blocked_units === null ? "Tutup tipe kamar" : `${row.blocked_units} unit diblokir`,
+        })),
+      ]});
+    }).catch(() => {
+      if (current) setStayEvents({ rangeStart, rows: [], error: true });
+    });
+    return () => { current = false; };
+  }, [rangeStart, rangeEnd, supabase]);
+
   const events = useMemo<CalendarEvent[]>(() => {
-    const bookingEvents = bookings.flatMap((booking) => booking.booking_items.map((item) => ({
+    const bookingEvents = bookings.flatMap((booking) => booking.booking_items.filter(item => item.service_type !== "stay" ||
+      ["pending_confirmation", "confirmed", "completed"].includes(booking.order_status)).map((item) => ({
       id: `${booking.id}:${item.id}`,
       kind: "booking" as const,
       serviceType: item.service_type,
@@ -46,6 +85,8 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
       subtitle: `${item.quantity} unit · ${item.guests} tamu`,
       orderNumber: booking.order_number,
       customerName: booking.customer_name,
+      status: "Lunas",
+      propertyId: item.property_id, roomId: item.room_type_id,
     })));
     const blockEvents = blocks.map((block) => {
       const selectedService = block.service_id ? catalogs[block.service_type].find((service) => service.id === block.service_id) : null;
@@ -53,11 +94,12 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
         id: `block:${block.id}`, kind: "block" as const, serviceType: block.service_type,
         title: selectedService ? selectedService.title : `Semua ${categoryLabels[block.service_type]}`,
         startDate: block.start_date, endDate: block.end_date,
-        subtitle: block.reason, blockId: block.id, reason: block.reason,
+        subtitle: block.reason, blockId: block.id, reason: block.reason, propertyId: block.service_id,
       };
     });
-    return [...bookingEvents, ...blockEvents];
-  }, [bookings, blocks, catalogs]);
+    return [...bookingEvents, ...blockEvents, ...(staySnapshot?.rows ?? [])].filter(event => !stayOnly ||
+      (event.serviceType === "stay" && (!stayProperty || !event.propertyId || event.propertyId === stayProperty)));
+  }, [bookings, blocks, catalogs, staySnapshot, stayOnly, stayProperty]);
 
   const monthLabel = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(month);
   const leadingDays = (month.getDay() + 6) % 7;
@@ -75,7 +117,7 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
   }
 
   function openBlockForm() {
-    setBlockStart(selectedDate); setBlockEnd(selectedDate); setBlockType("trip"); setBlockServiceId("");
+    setBlockStart(selectedDate); setBlockEnd(selectedDate); setBlockType(stayOnly ? "stay" : "trip"); setBlockServiceId(stayProperty ?? "");
     setBlockReason(""); setError(""); setNotice(""); setShowForm(true);
   }
 
@@ -110,7 +152,13 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
   }
 
   return <div>
-    <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-bold tracking-[0.2em] text-[#1974FF]">OPERASIONAL / KALENDER</p><h1 className="mt-2 text-2xl font-extrabold text-[#0A2E63]">Kalender Booking</h1><p className="mt-1 text-sm text-slate-500">Menampilkan booking dengan pembayaran terverifikasi dan tanggal yang diblokir.</p></div><button type="button" onClick={openBlockForm} className="inline-flex items-center gap-2 rounded-xl bg-[#FF8518] px-4 py-3 text-xs font-extrabold text-[#0A2E63]"><Plus size={16}/>Blokir tanggal</button></div>
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-[10px] font-bold tracking-[0.2em] text-[#1974FF]">OPERASIONAL / KALENDER</p><h1 className="mt-2 text-2xl font-extrabold text-[#0A2E63]">Kalender Booking</h1><p className="mt-1 text-sm text-slate-500">Agenda semua layanan, termasuk hold dan blokir unit Stay.</p></div><button type="button" onClick={openBlockForm} className="inline-flex items-center gap-2 rounded-xl bg-[#FF8518] px-4 py-3 text-xs font-extrabold text-[#0A2E63]"><Plus size={16}/>Blokir tanggal</button></div>
+    <nav aria-label="Filter layanan kalender" className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold text-[#1265D8]">
+      <Link href={`/admin/calendar?date=${selectedDate}`} aria-current={stayOnly ? undefined : "page"} className={`inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-3 ${stayOnly ? "bg-white" : "bg-blue-50"}`}>Semua layanan</Link>
+      <Link href={globalStayCalendarHref({ date: selectedDate })} aria-current={stayOnly ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-3 ${stayOnly ? "bg-blue-50" : "bg-white"}`}>Stay{stayProperty ? ` · ${catalogs.stay.find(item => item.id === stayProperty)?.title}` : ""}</Link>
+      <Link href={stayHref("calendar", { property: stayProperty, room: stayRoom, date: selectedDate })} className="inline-flex min-h-11 items-center px-2">Lihat stok Stay per malam →</Link>
+    </nav>
+    {staySnapshot?.error && <p role="alert" className="mt-3 text-xs text-red-700">Hold atau blokir unit Stay gagal dimuat.</p>}
     {notice && <p role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-xs text-green-800">{notice}</p>}{error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</p>}
     <div className="mt-5 flex flex-wrap gap-2">{Object.entries(categoryLabels).map(([key, label]) => <span key={key} className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${categoryColors[key as ServiceType]}`}>{label}</span>)}<span className="rounded-full bg-orange-100 px-3 py-1.5 text-[10px] font-bold text-orange-900">Blokir manual</span></div>
     <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -129,7 +177,7 @@ export default function BookingCalendar({ bookings, initialBlocks, catalogs }: {
       </section>
 
       <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-20"><p className="text-[10px] font-bold uppercase tracking-widest text-[#1974FF]">Agenda tanggal</p><h2 className="mt-1 text-lg font-extrabold text-[#0A2E63]">{formatDate(selectedDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h2>
-        {selectedEvents.length ? <div className="mt-4 space-y-3">{selectedEvents.map((item) => <article key={item.id} className={`rounded-xl border p-3 ${item.kind === "block" ? "border-orange-200 bg-orange-50/70" : "border-slate-100 bg-slate-50"}`}><div className="flex items-start justify-between gap-2"><span className={`rounded-full px-2 py-1 text-[9px] font-bold ${item.kind === "block" ? "bg-orange-200 text-orange-950" : categoryColors[item.serviceType]}`}>{item.kind === "block" ? "Diblokir" : categoryLabels[item.serviceType]}</span>{item.kind === "block" && item.blockId && <button type="button" onClick={() => void removeBlock(item.blockId!)} disabled={deletingId === item.blockId} aria-label="Hapus blokir" className="rounded-md p-1 text-red-600 hover:bg-red-100 disabled:opacity-50">{deletingId === item.blockId ? <LoaderCircle size={14} className="animate-spin"/> : <Trash2 size={14}/>}</button>}</div><h3 className="mt-2 text-xs font-bold text-[#0A2E63]">{item.title}</h3>{item.kind === "booking" ? <><p className="mt-1 text-[10px] text-slate-600">{item.customerName} · {item.subtitle}</p><p className="mt-1 text-[10px] font-bold text-green-700">Lunas · {item.orderNumber}</p></> : <><p className="mt-1 text-[10px] text-slate-600">{item.reason}</p><p className="mt-1 text-[10px] text-slate-500">{formatDate(item.startDate)} – {formatDate(item.endDate)}</p></>}</article>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500">Tidak ada booking lunas atau blokir pada tanggal ini.</p>}
+        {selectedEvents.length ? <div className="mt-4 space-y-3">{selectedEvents.map((item) => <article key={item.id} className={`rounded-xl border p-3 ${item.kind === "block" ? "border-orange-200 bg-orange-50/70" : "border-slate-100 bg-slate-50"}`}><div className="flex items-start justify-between gap-2"><span className={`rounded-full px-2 py-1 text-[9px] font-bold ${item.kind === "block" ? "bg-orange-200 text-orange-950" : categoryColors[item.serviceType]}`}>{item.kind === "block" ? "Diblokir" : categoryLabels[item.serviceType]}</span>{item.kind === "block" && item.blockId && <button type="button" onClick={() => void removeBlock(item.blockId!)} disabled={deletingId === item.blockId} aria-label="Hapus blokir" className="rounded-md p-1 text-red-600 hover:bg-red-100 disabled:opacity-50">{deletingId === item.blockId ? <LoaderCircle size={14} className="animate-spin"/> : <Trash2 size={14}/>}</button>}</div><h3 className="mt-2 text-xs font-bold text-[#0A2E63]">{item.title}</h3>{item.kind === "booking" ? <><p className="mt-1 text-[10px] text-slate-600">{item.customerName ? `${item.customerName} · ` : ""}{item.subtitle}</p><p className={`mt-1 text-[10px] font-bold ${item.status === "Hold aktif" ? "text-amber-800" : "text-green-700"}`}>{item.status} · {item.orderNumber}</p></> : <><p className="mt-1 text-[10px] text-slate-600">{item.roomId ? `${item.subtitle} · ` : ""}{item.reason}</p>{item.roomId && <Link href={stayHref("blocks", { property: item.propertyId ?? undefined, room: item.roomId, date: selectedDate })} className="inline-flex min-h-9 items-center text-[11px] font-bold text-[#1265D8]">Kelola blokir kamar →</Link>}<p className="mt-1 text-[10px] text-slate-500">{formatDate(item.startDate)} – {formatDate(item.endDate)}</p></>}</article>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500">Tidak ada booking, hold, atau blokir pada tanggal ini.</p>}
         {selectedBookings.length > 0 && <p className="mt-3 text-[10px] leading-relaxed text-slate-400">Booking terbayar tetap tercatat dan tidak berubah saat admin membuat blokir tanggal.</p>}
       </aside>
     </div>

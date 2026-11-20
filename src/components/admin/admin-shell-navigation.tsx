@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BedDouble, Bike, Building2, CalendarDays, Camera, ChevronDown, ChevronRight, ClipboardList, LayoutDashboard, LoaderCircle, LogOut, MapPin, Menu, Palette, Search, Settings, Ship, Sparkles, UserRound, Users, Wallet, Waves, X } from "lucide-react";
+import { isStayDate, stayHref, staySections, type StayContext } from "@/lib/admin/stay-navigation";
 import { createClient } from "@/lib/supabase/client";
 import { adminReleaseHistory, adminReleaseVersion } from "@/lib/admin/release-notes";
 import { NotificationBell } from "@/components/admin/notification-center";
@@ -16,7 +17,7 @@ const groups = [
   { label: "BOOKING & OPERASIONAL", items: [
     { href: "/admin/bookings", label: "Booking Center", icon: ClipboardList },
     { href: "/admin/notifications", label: "Notifikasi", icon: Bell },
-    { href: "/admin/calendar", label: "Calender", icon: CalendarDays },
+    { href: "/admin/calendar", label: "Kalender", icon: CalendarDays },
     { href: "/admin/finance", label: "Keuangan", icon: Wallet },
   ] },
   { label: "MASTER DATA", items: [{href:"/admin/destinations",label:"Destinasi",icon:MapPin}] },
@@ -55,14 +56,30 @@ function AdminDevelopmentFooter() {
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const search = useSearchParams();
+  const date = search.get("date");
+  const filter = search.get("filter");
+  const context: StayContext = pathname === "/admin/stay" ? {
+    property: search.get("property") ?? undefined, room: search.get("room") ?? undefined,
+    date: isStayDate(date) ? date : undefined, filter: filter === "occupied" || filter === "full" ? filter : undefined,
+  } : {};
+  const currentStaySection = search.get("view") ?? "properties";
   return <>
     {groups.map((group) => <section key={group.label} className="mb-5">
       <p className="mb-2 px-3 text-[9px] font-extrabold tracking-[.16em] text-slate-400">{group.label}</p>
       <div className="space-y-1">{group.items.map(({ href, label, icon: Icon }) => {
         const active = href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(href + "/");
-        return <Link key={href} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition ${active ? "bg-[#1974FF] text-white shadow-md shadow-blue-900/15" : "text-slate-600 hover:bg-blue-50 hover:text-[#0A2E63]"}`}>
+        return <div key={href}><Link href={href} onClick={onNavigate} aria-current={active && href !== "/admin/stay" ? "page" : undefined} className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] font-semibold transition ${active ? "bg-[#1974FF] text-white shadow-md shadow-blue-900/15" : "text-slate-600 hover:bg-blue-50 hover:text-[#0A2E63]"}`}>
           <Icon size={17} className={active ? "text-white" : "text-slate-400 group-hover:text-[#1974FF]"}/><span className="min-w-0 flex-1 truncate">{label}</span>{active && <ChevronRight size={14} className="text-blue-100"/>}
-        </Link>;
+        </Link>
+        {href === "/admin/stay" && active && <div className="ml-6 mt-1 space-y-1 border-l border-slate-200 pl-2">
+          {staySections.map(item => {
+            const selected = pathname === href && currentStaySection === item.id;
+            return <Link key={item.id} href={stayHref(item.id, context)} onClick={onNavigate} aria-current={selected ? "page" : undefined}
+              className={`flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold ${selected ? "bg-blue-50 text-[#1265D8]" : "text-slate-600 hover:bg-blue-50"}`}>{item.label}</Link>;
+          })}
+        </div>}
+        </div>;
       })}</div>
     </section>)}
   </>;
