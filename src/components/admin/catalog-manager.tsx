@@ -3,7 +3,7 @@
 import { parseCatalogRupiah } from "@/lib/rupiah-input";
 import { StaySpecialRates } from "@/components/admin/stay-special-rates";
 import { VendorContactForm } from "@/components/admin/vendor-contact-form";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {DestinationSelect} from "@/components/destinations/destination-select";
 import {ServiceDestinationEditor} from "@/components/destinations/service-destination-editor";
@@ -79,6 +79,10 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showRoomForm, setShowRoomForm] = useState(false);
+  const [showRoomPanel, setShowRoomPanel] = useState(false);
+  const roomPanelRef = useRef<HTMLElement>(null);
+  const roomPanelButtonRef = useRef<HTMLButtonElement>(null);
+  const roomRequest = useRef(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -97,8 +101,10 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   }, [supabase, table]);
 
   const loadRooms = useCallback(async (propertyId: string) => {
+    const request = ++roomRequest.current;
     const { data, error: queryError } = await supabase.from("stay_room_types")
       .select("*").eq("property_id", propertyId).order("created_at", { ascending: false });
+    if (request !== roomRequest.current) return;
     if (queryError) setError(queryError.message);
     else setRooms((data ?? []) as RoomData[]);
   }, [supabase]);
@@ -116,6 +122,35 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
     }
   }, [isTrip, selected?.id, loadRooms]);
 
+  useEffect(() => {
+    if (showRoomPanel) focusRoomPanel();
+  }, [showRoomPanel, selected?.id]);
+
+  function focusRoomPanel() {
+    roomPanelRef.current?.focus({ preventScroll: true });
+    roomPanelRef.current?.scrollIntoView({ block: "start" });
+  }
+
+  function openRooms(item: RowData) {
+    if (item.id !== selected?.id) {
+      roomRequest.current++;
+      setSelected(item);
+      setRooms([]);
+      setEditingRoom(null);
+      setShowRoomForm(false);
+      setShowForm(false);
+    }
+    setShowRoomPanel(true);
+    if (showRoomPanel && item.id === selected?.id) focusRoomPanel();
+  }
+
+  function closeRooms() {
+    setShowRoomPanel(false);
+    setShowRoomForm(false);
+    setEditingRoom(null);
+    roomPanelButtonRef.current?.focus();
+  }
+
   const filtered = items.filter((item) => {
     const name = String(isTrip ? item.title : item.name);
     return name.toLowerCase().includes(search.toLowerCase()) &&
@@ -123,6 +158,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   });
 
   function startNew() {
+    closeRooms();
+    roomRequest.current++;
     setSelected(null);
     setRooms([]);
     setForm(isTrip ? { ...emptyTrip } : { ...emptyStay });
@@ -130,8 +167,12 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
   }
 
   function startEdit(item: RowData) {
+    closeRooms();
+    if (selected?.id !== item.id) {
+      roomRequest.current++;
+      setRooms([]);
+    }
     setSelected(item);
-    setRooms([]);
     if (isTrip) {
       setForm({
         ...item,
@@ -279,6 +320,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       const { error: saveError } = await query;
       if (saveError) throw saveError;
       setNotice(isTrip ? "Paket trip berhasil disimpan." : "Listing properti berhasil disimpan.");
+      closeRooms();
       setShowForm(false); setSelected(null); await loadItems();
     } catch (e) { setError(e instanceof Error ? e.message : "Data gagal disimpan."); }
     finally { setSaving(false); }
@@ -331,7 +373,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       facilities: lines(roomForm.facilities), gallery_urls: lines(roomForm.gallery_urls), youtube_tour_url: roomForm.youtube_tour_url.trim() || null, status: roomForm.status
     };
     const query = editingRoom
-      ? supabase.from("stay_room_types").update(payload).eq("id", editingRoom)
+      ? supabase.from("stay_room_types").update(payload).eq("id", editingRoom).eq("property_id", selected.id)
       : supabase.from("stay_room_types").insert(payload);
     const { error: roomError } = await query;
     if (roomError) setError(roomError.message);
@@ -388,6 +430,46 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       {notice && <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
+      {!isTrip && selected && showRoomPanel && (
+        <section id="stay-room-rates" ref={roomPanelRef} tabIndex={-1} aria-labelledby="stay-room-rates-heading" className="scroll-mt-24 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="stay-room-rates-heading" className="text-lg font-bold text-[#0A2E63]">Harga &amp; Tipe Kamar</h2>
+              <p className="mt-1 text-xs text-slate-600">{selected.name} · Tarif per malam dan per unit</p>
+              <p className="mt-1 text-xs text-slate-600">Pilih Edit harga untuk mengatur weekday, weekend, dan tanggal khusus.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+            <button onClick={() => { setShowRoomForm(true); setEditingRoom(null); setRoomForm({ ...emptyRoom }); }} className="inline-flex items-center gap-2 rounded-xl bg-[#1974FF] px-3 py-2.5 text-xs font-bold text-white"><CirclePlus size={15}/> Tambah tipe kamar</button>
+              <button type="button" onClick={closeRooms} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600">Tutup panel harga</button>
+            </div>
+          </div>
+          {showRoomForm && <form onSubmit={saveRoom} className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+            <Field label="Nama tipe kamar *" value={roomForm.name} onChange={(v) => setRoomForm((s) => ({ ...s, name: v }))} required/>
+            <Field label="Kapasitas tamu" type="number" value={roomForm.capacity} onChange={(v) => setRoomForm((s) => ({ ...s, capacity: v }))}/>
+            <Field label="Jumlah unit" type="number" value={roomForm.total_units} onChange={(v) => setRoomForm((s) => ({ ...s, total_units: v }))}/>
+            <Field label="Harga Weekday · Senin–Kamis (IDR)" type="number" value={roomForm.weekday_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekday_price: v }))}/>
+            <Field label="Harga Weekend · Jumat–Minggu (IDR)" type="number" value={roomForm.weekend_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekend_price: v }))}/>
+            <Field label="Harga extra bed (IDR)" type="number" value={roomForm.extra_bed_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_bed_price: v }))}/>
+            <Field label="Harga extra guest (IDR)" type="number" value={roomForm.extra_guest_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_guest_price: v }))}/>
+            <TextAreaField label="Deskripsi" value={roomForm.description} onChange={(v) => setRoomForm((s) => ({ ...s, description: v }))} rows={2}/>
+            <StayFacilityPicker label="Fasilitas Room" value={roomForm.facilities} onChange={(v) => setRoomForm((s) => ({ ...s, facilities: v }))}/>
+            <Field label="YouTube Room Tour URL (opsional)" value={roomForm.youtube_tour_url} onChange={(v) => setRoomForm((s) => ({ ...s, youtube_tour_url: v }))}/>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-blue-300 bg-blue-50 p-3 text-xs font-semibold text-[#1974FF] sm:col-span-2"><ImagePlus size={15}/> Upload foto kamar<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={(e)=>{void uploadRoomGallery(e.target.files);e.currentTarget.value="";}}/></label>
+            <TextAreaField label="Daftar foto kamar (URL otomatis / manual)" value={roomForm.gallery_urls} onChange={(v) => setRoomForm((s) => ({ ...s, gallery_urls: v }))} rows={2}/>
+            <div className="flex items-center gap-2 sm:col-span-2"><button disabled={saving} className="rounded-xl bg-[#1974FF] px-4 py-2.5 text-xs font-bold text-white">Simpan tipe kamar</button><button type="button" onClick={() => setShowRoomForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold">Batal</button></div>
+          </form>}
+          {showRoomForm && editingRoom && <StaySpecialRates key={editingRoom} roomId={editingRoom}/>}
+          <div className="mt-4 space-y-2">
+            {rooms.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Belum ada tipe kamar untuk properti ini.</p> : rooms.map((room) => (
+              <div key={room.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+                <div><p className="text-sm font-bold text-[#0A2E63]">{room.name}</p><p className="mt-1 text-xs text-slate-500">{room.capacity} tamu · {room.total_units} unit · Weekday {money(room.weekday_price)} · Weekend {money(room.weekend_price)}</p><span className="mt-1 inline-block text-[10px] text-slate-400">{room.status}</span></div>
+                <div className="flex gap-2"><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit harga</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {showForm && (
         <>
         <form onSubmit={saveItem} className="space-y-5 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
@@ -395,8 +477,14 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             <div>
               <h2 className="font-bold text-[#0A2E63]">{selected ? "Edit" : "Buat"} {isTrip ? "Paket Trip" : "Listing Properti"}</h2>
               <p className="mt-1 text-xs text-slate-500">Kolom bertanda * wajib diisi.</p>
+              {!isTrip && !selected && <p className="mt-1 text-xs text-slate-500">Simpan properti untuk mulai menambahkan tipe kamar dan tarifnya.</p>}
             </div>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18}/></button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {!isTrip && selected && <button ref={roomPanelButtonRef} type="button" aria-controls={showRoomPanel ? "stay-room-rates" : undefined} aria-expanded={showRoomPanel} onClick={() => openRooms(selected)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-100">
+                <BedDouble size={15} aria-hidden/> Harga &amp; Tipe Kamar
+              </button>}
+              <button type="button" aria-label="Tutup editor" onClick={() => setShowForm(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18}/></button>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -514,7 +602,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
                     <p className="mt-2 text-xs font-semibold text-[#1974FF]">{isTrip ? money(item.base_price) : item.property_type}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button onClick={() => startEdit(item)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold text-[#0A2E63]"><Pencil size={12}/> Edit</button>
-                      {!isTrip && <button onClick={() => { setSelected(item); setShowForm(false); }} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><BedDouble size={12}/> Tipe kamar</button>}
+                      {!isTrip && <button onClick={() => openRooms(item)} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><BedDouble size={12}/> Harga &amp; Tipe Kamar</button>}
                       {isTrip && <button onClick={() => { setSelected(item); setShowForm(false); }} className="inline-flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[10px] font-bold text-[#1974FF]"><CalendarDays size={12}/> Jadwal</button>}
                       {item.status !== "archived" && <button onClick={() => void archiveItem(item)} className="inline-flex items-center gap-1 rounded-lg border border-orange-100 px-2.5 py-1.5 text-[10px] font-bold text-orange-700"><Archive size={12}/> Arsipkan</button>}
                     </div>
@@ -528,38 +616,6 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
 
       {isTrip && selected && !showForm && <TripDeparturesManager tripId={selected.id} tripName={String(selected.title ?? "")}/> }
 
-      {!isTrip && selected && !showForm && (
-        <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#1974FF]">ROOM MANAGEMENT</p><h2 className="mt-1 text-lg font-bold text-[#0A2E63]">{selected.name}</h2></div>
-            <button onClick={() => { setShowRoomForm(true); setEditingRoom(null); setRoomForm({ ...emptyRoom }); }} className="inline-flex items-center gap-2 rounded-xl bg-[#1974FF] px-3 py-2.5 text-xs font-bold text-white"><CirclePlus size={15}/> Tambah tipe kamar</button>
-          </div>
-          {showRoomForm && <form onSubmit={saveRoom} className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
-            <Field label="Nama tipe kamar *" value={roomForm.name} onChange={(v) => setRoomForm((s) => ({ ...s, name: v }))} required/>
-            <Field label="Kapasitas tamu" type="number" value={roomForm.capacity} onChange={(v) => setRoomForm((s) => ({ ...s, capacity: v }))}/>
-            <Field label="Jumlah unit" type="number" value={roomForm.total_units} onChange={(v) => setRoomForm((s) => ({ ...s, total_units: v }))}/>
-            <Field label="Harga Weekday · Senin–Kamis (IDR)" type="number" value={roomForm.weekday_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekday_price: v }))}/>
-            <Field label="Harga Weekend · Jumat–Minggu (IDR)" type="number" value={roomForm.weekend_price} onChange={(v) => setRoomForm((s) => ({ ...s, weekend_price: v }))}/>
-            <Field label="Harga extra bed (IDR)" type="number" value={roomForm.extra_bed_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_bed_price: v }))}/>
-            <Field label="Harga extra guest (IDR)" type="number" value={roomForm.extra_guest_price} onChange={(v) => setRoomForm((s) => ({ ...s, extra_guest_price: v }))}/>
-            <TextAreaField label="Deskripsi" value={roomForm.description} onChange={(v) => setRoomForm((s) => ({ ...s, description: v }))} rows={2}/>
-            <StayFacilityPicker label="Fasilitas Room" value={roomForm.facilities} onChange={(v) => setRoomForm((s) => ({ ...s, facilities: v }))}/>
-            <Field label="YouTube Room Tour URL (opsional)" value={roomForm.youtube_tour_url} onChange={(v) => setRoomForm((s) => ({ ...s, youtube_tour_url: v }))}/>
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-blue-300 bg-blue-50 p-3 text-xs font-semibold text-[#1974FF] sm:col-span-2"><ImagePlus size={15}/> Upload foto kamar<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={(e)=>{void uploadRoomGallery(e.target.files);e.currentTarget.value="";}}/></label>
-            <TextAreaField label="Daftar foto kamar (URL otomatis / manual)" value={roomForm.gallery_urls} onChange={(v) => setRoomForm((s) => ({ ...s, gallery_urls: v }))} rows={2}/>
-            <div className="flex items-center gap-2 sm:col-span-2"><button disabled={saving} className="rounded-xl bg-[#1974FF] px-4 py-2.5 text-xs font-bold text-white">Simpan tipe kamar</button><button type="button" onClick={() => setShowRoomForm(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold">Batal</button></div>
-          </form>}
-          {showRoomForm && editingRoom && <StaySpecialRates key={editingRoom} roomId={editingRoom}/>}
-          <div className="mt-4 space-y-2">
-            {rooms.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Belum ada tipe kamar untuk properti ini.</p> : rooms.map((room) => (
-              <div key={room.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
-                <div><p className="text-sm font-bold text-[#0A2E63]">{room.name}</p><p className="mt-1 text-xs text-slate-500">{room.capacity} tamu · {room.total_units} unit · Weekday {money(room.weekday_price)} · Weekend {money(room.weekend_price)}</p><span className="mt-1 inline-block text-[10px] text-slate-400">{room.status}</span></div>
-                <div className="flex gap-2"><button onClick={() => { setEditingRoom(room.id); setRoomForm({ name: room.name, description: room.description || "", capacity: String(room.capacity), total_units: String(room.total_units), weekday_price: String(room.weekday_price), weekend_price: String(room.weekend_price), extra_bed_price: String(room.extra_bed_price), extra_guest_price: String(room.extra_guest_price), facilities: (room.facilities||[]).join("\n"), gallery_urls: (room.gallery_urls||[]).join("\n"), youtube_tour_url: room.youtube_tour_url||"", status: room.status }); setShowRoomForm(true); }} className="rounded-lg border border-blue-100 px-3 py-2 text-[10px] font-bold text-[#1974FF]">Edit</button><button onClick={() => void archiveRoom(room)} className="rounded-lg border border-orange-100 px-3 py-2 text-[10px] font-bold text-orange-700">Nonaktifkan</button></div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
       <p className="text-[11px] leading-5 text-slate-400">Foto cover dan galeri dapat diunggah langsung ke Supabase Storage. Video tour menggunakan URL YouTube dan ditampilkan sebagai player pada halaman detail pelanggan.</p>
     </div>
   );
