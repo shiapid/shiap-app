@@ -1,5 +1,4 @@
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { SiteIconProvider } from "@/components/site/site-icon-provider";
 import CustomerAppShell from "@/components/layout/customer-app-shell";
@@ -19,6 +18,12 @@ const geistMono = localFont({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#0f172a", // Sesuaikan dengan warna brand utama SHIAP
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: {
     default: "SHIAP — Travel, Stay & Experience",
@@ -35,6 +40,14 @@ export const metadata: Metadata = {
     "Snorkeling",
     "Villa Kotabaru",
   ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SHIAP",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
