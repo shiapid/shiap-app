@@ -1,3 +1,5 @@
+import { requireAdmin } from "@/lib/admin/guard";
+import { vendorWhatsAppLink } from "@/lib/admin/vendor-contact";
 import { bookingItemCategory } from "@/lib/admin/booking-category";
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,6 +47,7 @@ function rupiah(value: number | null) {
 }
 
 export default async function AdminBookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const supabase = await createClient();
   const { error: holdError } = await supabase.rpc("expire_booking_holds");
@@ -58,6 +61,10 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
   if (error) return <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Detail booking gagal dimuat: {error.message}</p>;
   if (!order) notFound();
   const { data: experienceRequest } = await supabase.from("shiap_experience_booking_records").select("id,request_status,booking_mode,participant_count,participant_data,selected_addons,request_details,review_note").eq("booking_id", id).maybeSingle();
+
+  const { data: contacts, error: vendorError } = await supabase.rpc("admin_booking_vendor_contacts", { p_booking_id: id });
+  const vendorByItem = new Map<string, { name: string; whatsapp: string }>();
+  for (const contact of contacts ?? []) vendorByItem.set(contact.item_id, contact);
 
   return (
     <div>
@@ -103,7 +110,12 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2"><ClipboardList className="text-[#1974FF]" size={19}/><h2 className="font-bold text-[#0A2E63]">Rincian layanan</h2></div>
         <div className="mt-4 space-y-4">
-          {order.booking_items.map((item) => (
+          {vendorError && <p role="alert" className="text-xs text-amber-800">Kontak vendor gagal dimuat.</p>}
+          {order.booking_items.map((item) => {
+            const vendor = vendorByItem.get(item.id);
+            const dates = dateOnly(item.date_start) + (item.date_end ? " – " + dateOnly(item.date_end) : "");
+            const vendorLink = vendor && vendorWhatsAppLink(vendor.whatsapp, order.order_number, item.service_name, dates, item.guests, item.quantity);
+            return (
             <article key={item.id} className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -123,8 +135,14 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
                 <div className="flex items-center gap-2 text-xs text-slate-600"><Layers3 size={15} className="text-[#1974FF]"/><span>{item.quantity} unit</span></div>
               </div>
               {item.notes && <p className="mt-3 text-xs leading-5 text-slate-500">Catatan layanan: {item.notes}</p>}
+              {vendor && vendorLink && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
+                <div className="min-w-0"><p className="text-xs text-slate-500">Vendor/PIC</p><p className="break-words text-sm font-bold">{vendor.name}</p><p className="text-xs text-slate-600">+{vendor.whatsapp}</p></div>
+                <a href={vendorLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-50 px-4 text-xs font-bold text-emerald-800">Hubungi Vendor</a>
+              </div>}
+              {!vendor && !vendorError && <p className="mt-3 text-xs text-slate-500">Kontak vendor belum tersedia untuk layanan ini.</p>}
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
 

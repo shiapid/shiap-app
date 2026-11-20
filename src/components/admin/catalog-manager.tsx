@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { VendorContactForm } from "@/components/admin/vendor-contact-form";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {DestinationSelect} from "@/components/destinations/destination-select";
@@ -379,6 +380,7 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {showForm && (
+        <>
         <form onSubmit={saveItem} className="space-y-5 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -466,6 +468,8 @@ export default function CatalogManager({ mode }: { mode: Mode }) {
             </button>
           </div>
         </form>
+        {selected && <VendorContactForm key={selected.id} column={isTrip ? "trip_id" : "stay_id"} productId={selected.id}/>}
+        </>
       )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { VendorContactForm } from "@/components/admin/vendor-contact-form";
 import {DestinationSelect} from "@/components/destinations/destination-select";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
@@ -153,6 +154,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
             <button disabled={Boolean(busy)} type="button" onClick={()=>void archiveProperty(item)} className="min-h-11 rounded-xl border border-red-200 px-4 text-xs font-bold text-red-700">Hapus properti</button>
           </div>
         </form>
+        <VendorContactForm key={item.id} column="places_id" productId={item.id}/>
         </div> : null}
       </article>;
       return <article key={item.id} className="relative rounded-xl border border-slate-200 bg-white">
@@ -167,6 +169,7 @@ export function PlacesAdminClient({ destinations, properties, profiles, plan, lo
         <label className="text-[10px] font-semibold text-slate-500">Status<select name="status" defaultValue={item.status} className={input}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <button disabled={busy===`property-${item.id}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 text-xs font-bold text-[#1265D8] disabled:opacity-50 sm:col-span-3"><Save size={14}/> Simpan properti</button>
       </form>
+      <VendorContactForm key={item.id} column="places_id" productId={item.id}/>
       <form onSubmit={(event)=>void updateProfile(event,item.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">
         {(()=>{const p=profiles.find((profile)=>profile.property_id===item.id);return <>
           <label className="text-[10px] font-semibold text-slate-500 sm:col-span-3">Deskripsi<textarea name="description" defaultValue={p?.description??""} rows={2} className={`${input} h-auto py-2`}/></label>
