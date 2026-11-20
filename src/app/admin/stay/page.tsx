@@ -3,7 +3,7 @@ import CatalogManager from "@/components/admin/catalog-manager";
 import { StayRoomInventory } from "@/components/admin/stay-room-inventory";
 import { StayScopePicker } from "@/components/admin/stay-scope-picker";
 import { createClient } from "@/lib/supabase/server";
-import { globalStayCalendarHref, isStayDate, stayHref, staySections, todayInStay, type StayContext } from "@/lib/admin/stay-navigation";
+import { globalStayCalendarHref, isStayDate, staySections, todayInStay, type StayContext } from "@/lib/admin/stay-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +27,6 @@ export default async function AdminStayPage({ searchParams }: { searchParams: Pr
   };
 
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-xl font-extrabold text-[#0A2E63]">Stay Admin</h1>
-      <Link href="/admin/stay/partners" className="inline-flex min-h-11 items-center text-xs font-bold text-[#1265D8]">Kemitraan &amp; perjanjian Stay</Link>
-    </div>
-    <nav aria-label="Submenu Stay" className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 sm:grid-cols-4">
-      {staySections.map(item => <Link key={item.id} href={stayHref(item.id, context)} aria-current={section === item.id ? "page" : undefined}
-        className={`flex min-h-11 items-center justify-center rounded-xl px-2 text-center text-xs font-bold ${section === item.id ? "bg-[#1265D8] text-white" : "text-[#0A2E63] hover:bg-blue-50"}`}>
-        {item.label}
-      </Link>)}
-    </nav>
     {section === "properties" ? <CatalogManager mode="stay" stayContext={context}/> :
       error || roomsResult?.error ? <p role="alert" className="rounded-xl bg-white p-4 text-sm text-red-700">Data properti atau kamar gagal dimuat.</p> :
       !property ? <p className="rounded-xl bg-white p-4 text-sm">Tambahkan properti untuk mengatur kamar dan kalender.</p> : <>
