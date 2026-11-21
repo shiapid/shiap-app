@@ -6,6 +6,36 @@ import { bookingAdmin } from "@/lib/supabase/booking-admin";
 
 export const runtime = "nodejs";
 
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    sameOrigin(request);
+    const user = await requireApiAdmin();
+    const { id } = await params;
+    const version = Number(new URL(request.url).searchParams.get("version"));
+    if (!uuidPattern.test(id) || !Number.isInteger(version) || version < 1 || version > 2147483647) {
+      throw new BookingError("Jadwal tidak valid.");
+    }
+
+    const { data, error } = await bookingAdmin().rpc("admin_remove_trip_departure", {
+      p_actor: user.id,
+      p_departure_id: id,
+      p_expected_version: version,
+    });
+    if (error) throw new BookingError("Jadwal belum bisa dihapus. Silakan coba lagi.", 503);
+    if (data === "not_found") throw new BookingError("Jadwal tidak ditemukan.", 404);
+    if (data === "conflict") {
+      return Response.json({ result: "conflict", error: "Jadwal sudah berubah. Periksa data terbaru sebelum menghapus." }, { status: 409, headers: privateHeaders });
+    }
+    if (data === "has_bookings") throw new BookingError("Jadwal memiliki booking atau kursi tertahan dan tidak bisa dihapus.", 409);
+    if (data !== "removed") throw new BookingError("Jadwal gagal dihapus.", 503);
+
+    revalidatePath("/trip/[slug]", "page");
+    revalidatePath("/explore", "page");
+    revalidatePath("/booking", "page");
+    return Response.json({ removed: true }, { headers: privateHeaders });
+  } catch (error) { return routeError(error); }
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     sameOrigin(request);

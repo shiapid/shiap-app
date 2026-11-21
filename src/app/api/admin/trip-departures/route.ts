@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     if (!uuidPattern.test(tripId)) throw new BookingError("Trip tidak valid.");
     const { data, error } = await bookingAdmin().from("trip_departures")
       .select("id,trip_id,departure_date,end_date,departure_time,price_per_person,min_participants,max_participants,booked_seats,status,meeting_point,notes,updated_at,version")
-      .eq("trip_id", tripId).order("departure_date", { ascending: true });
+      .eq("trip_id", tripId).is("removed_at", null).order("departure_date", { ascending: true });
     if (error) throw new BookingError("Jadwal Trip belum dapat dimuat.", 503);
     return Response.json({ departures: data ?? [] }, { headers: privateHeaders });
   } catch (error) { return routeError(error); }

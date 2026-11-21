@@ -591,7 +591,7 @@ export default function CatalogManager({ mode, roomProperty, stayContext }: { mo
         }
       </div>
 
-      {isTrip && selected && !showForm && <TripDeparturesManager tripId={selected.id} tripName={String(selected.title ?? "")}/> }
+      {isTrip && selected && !showForm && <TripDeparturesManager key={selected.id} tripId={selected.id} tripName={String(selected.title ?? "")}/> }
 
       <p className="text-[11px] leading-5 text-slate-400">Foto cover dan galeri dapat diunggah langsung ke Supabase Storage. Video tour menggunakan URL YouTube dan ditampilkan sebagai player pada halaman detail pelanggan.</p>
       </>}

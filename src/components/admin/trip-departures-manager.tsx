@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CirclePlus, LoaderCircle, Pencil, Save, X } from "lucide-react";
+import { CalendarDays, CirclePlus, LoaderCircle, Pencil, Save, Trash2, X } from "lucide-react";
 
 type Departure = {
   id: string; trip_id: string; departure_date: string; end_date: string | null; departure_time: string | null;
@@ -26,6 +26,8 @@ export default function TripDeparturesManager({ tripId, tripName }: { tripId: st
   const [impact, setImpact] = useState<Impact | null>(null);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showOther, setShowOther] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -103,6 +105,28 @@ export default function TripDeparturesManager({ tripId, tripName }: { tripId: st
     finally { setSaving(false); }
   }
 
+  async function remove(row: Departure) {
+    if (!window.confirm(`Hapus jadwal ${tripName} pada ${dateLabel(row.departure_date)} dari daftar?`)) return;
+    setRemovingId(row.id);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/trip-departures/${row.id}?version=${row.version}`, { method: "DELETE" });
+      const result = await response.json();
+      if (result.result === "conflict") await load();
+      if (!response.ok) throw new Error(result.error || "Jadwal gagal dihapus.");
+      setRows(current => current.filter(departure => departure.id !== row.id));
+      setNotice("Jadwal berhasil dihapus dari daftar.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Jadwal gagal dihapus."); }
+    finally { setRemovingId(null); }
+  }
+
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Makassar" }).format();
+  const isActive = (row: Departure) => row.status === "open" && row.departure_date.slice(0, 10) >= today;
+  const activeRows = rows.filter(isActive);
+  const otherRows = rows.filter(row => !isActive(row));
+  const visibleRows = showOther ? otherRows : activeRows;
+
   const formatValue = (key: string, value: unknown) => key === "departure_date" || key === "end_date"
     ? (typeof value === "string" && value ? dateLabel(value) : "Tidak diatur")
     : key === "price_per_person" ? (value === null ? "Harga mengikuti paket" : money(Number(value)))
@@ -142,12 +166,21 @@ export default function TripDeparturesManager({ tripId, tripName }: { tripId: st
         </div>
       </section>
     </div>}
-    {loading ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Memuat jadwal…</p> : rows.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Belum ada jadwal. Tambahkan tanggal keberangkatan untuk Open Trip.</p> : <div className="mt-4 space-y-2">{rows.map(row => <article key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+    <div role="group" aria-label="Filter jadwal" className="mt-4 flex flex-wrap gap-2">
+      <button type="button" aria-pressed={!showOther} onClick={() => setShowOther(false)} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 aria-pressed:border-blue-200 aria-pressed:bg-blue-50 aria-pressed:text-[#1265D8]">Jadwal Aktif ({activeRows.length})</button>
+      <button type="button" aria-pressed={showOther} onClick={() => setShowOther(true)} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 aria-pressed:border-blue-200 aria-pressed:bg-blue-50 aria-pressed:text-[#1265D8]">Jadwal Lain ({otherRows.length})</button>
+    </div>
+    {loading ? <p className="mt-3 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">Memuat jadwal…</p> : visibleRows.length === 0 ? <p className="mt-3 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">{showOther ? "Tidak ada jadwal lain." : "Belum ada jadwal aktif."}</p> : <div className="mt-3 space-y-2">{visibleRows.map(row => <article key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
       <div className="min-w-0"><p className="text-sm font-bold text-[#0A2E63]"><CalendarDays size={14} className="mr-1 inline text-[#1265D8]"/>{dateLabel(row.departure_date)}{row.departure_time && <span className="ml-2 text-xs font-medium text-slate-500">{row.departure_time.slice(0,5)} WITA</span>}</p>
         <p className="mt-1 text-xs text-slate-500">{money(row.price_per_person)} / pax · {row.booked_seats}/{row.max_participants} kursi · min {row.min_participants} peserta · {row.status}</p>
         {row.meeting_point && <p className="mt-1 break-words text-[11px] text-slate-500">Titik temu: {row.meeting_point}</p>}
       </div>
-      <button type="button" onClick={() => openForm(row)} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-blue-200 px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-50"><Pencil size={14}/> Edit Jadwal</button>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={removingId !== null} onClick={() => openForm(row)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-200 px-3 text-xs font-bold text-[#1265D8] hover:bg-blue-50"><Pencil size={14}/> Edit Jadwal</button>
+        <button type="button" disabled={removingId !== null || row.booked_seats > 0} onClick={() => void remove(row)} aria-label={`Hapus jadwal ${dateLabel(row.departure_date)}`} title={row.booked_seats > 0 ? "Jadwal memiliki kursi terpakai atau tertahan" : "Hapus jadwal"} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40">
+          {removingId === row.id ? <LoaderCircle size={15} className="animate-spin"/> : <Trash2 size={15}/>}
+        </button>
+      </div>
     </article>)}</div>}
   </section>;
 }
