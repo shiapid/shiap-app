@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { checkoutBooking } from "@/lib/checkout-client";
+import { eligibleUnifiedCart, unifiedCartPayload, unifiedCheckoutEnabled } from "@/lib/unified-checkout";
 import ServiceCategoryIcon from "@/components/booking/service-category-icon";
 import ServiceFeeSummary, { useServiceFeeQuote } from "@/components/booking/service-fee-summary";
 import {
@@ -287,7 +288,11 @@ export default function BookingEngineClient() {
       return;
     }
     const others = cart.filter(item => item.id !== editingItem?.id);
-    if (others.some(item => item.partnerStay) || (serviceType === "stay" && stayQuote?.mode !== "LEGACY" && others.length)) {
+    const addingPartner = serviceType === "stay" && ["REQUEST_TO_BOOK", "INSTANT"].includes(stayQuote?.mode ?? "");
+    const validPair = unifiedCheckoutEnabled && others.length === 1 &&
+      ((addingPartner && others[0].serviceType === "trip" && !!others[0].departureId) ||
+       (serviceType === "trip" && !!departureId && others[0].partnerStay));
+    if (!validPair && (others.some(item => item.partnerStay) || (addingPartner && others.length))) {
       setNotice("Pesanan Stay Partner dibuat terpisah. Kirim pesanan yang ada dahulu.");
       return;
     }
@@ -456,12 +461,13 @@ export default function BookingEngineClient() {
         room_type_id: item.roomTypeId || null,
         ...(item.stayRate ? { expected_stay_subtotal: item.stayRate.subtotal } : {}),
       }));
-      const createdId = await checkoutBooking("booking", {
+      const mixed = unifiedCheckoutEnabled && cart.length === 2 && eligibleUnifiedCart(cart);
+      const createdId = await checkoutBooking(mixed ? "unified" : "booking", {
         p_customer_name: customer.name.trim(),
         p_customer_whatsapp: customer.whatsapp.trim(),
         p_customer_email: customer.email?.trim() || null,
         p_customer_notes: customer.notes?.trim() || null,
-        p_items,
+        p_items: mixed ? unifiedCartPayload(cart) : p_items,
       });
       setCart([]);
       localStorage.removeItem(BOOKING_STORAGE_KEY);
@@ -691,6 +697,7 @@ export default function BookingEngineClient() {
               <div className="border-t border-slate-200 pt-2">
                 {hasUnpricedItems ? <p>Harga belum tersedia</p> : <ServiceFeeSummary quote={feeQuote.data} error={feeQuote.error} />}
                 <p className="mt-0.5 text-xs text-slate-600">Harga final dihitung saat booking dikirim.</p>
+                {unifiedCheckoutEnabled && eligibleUnifiedCart(cart) && <Link href="/experiences" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1265D8]">Tambahkan Experience ke pesanan</Link>}
               </div>
             </>
           )}

@@ -1,6 +1,7 @@
 import type { BookingState } from "./booking-status";
 
 import type { FeeLine } from "./service-fees";
+import type { UnifiedBookingView } from "./unified-checkout";
 
 export type CustomerOrder = BookingState & {
   id: string; order_number: string; customer_name: string; customer_whatsapp: string;
@@ -20,6 +21,7 @@ export type BankSettings = { bank_name: string; account_number: string; account_
 export type BookingDetail = {
   order: CustomerOrder; proofs: ProofRecord[]; settings: BankSettings | null; serverNow: string;
   supportPhone: string | null; guest: boolean; canClaim: boolean;
+  unified?: UnifiedBookingView | null;
   experience: { request_status: string; review_note: string | null } | null;
 };
 export function bookingDate(value: string) {

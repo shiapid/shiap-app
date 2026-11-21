@@ -9,7 +9,7 @@ async function ensureSession() {
   return session;
 }
 
-export async function checkoutBooking(kind: "booking" | "experience", payload: Record<string, unknown>) {
+export async function checkoutBooking(kind: "booking" | "experience" | "unified", payload: Record<string, unknown>) {
   await ensureSession();
   const body = JSON.stringify({ kind, payload });
   const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body))), (value) => value.toString(16).padStart(2, "0")).join("");
@@ -34,7 +34,7 @@ export async function checkoutBooking(kind: "booking" | "experience", payload: R
 export function confirmCheckoutNavigation(bookingId: string) {
   // A new checkout may start after the receipt has actually loaded. Until then,
   // repeated submits and uncertain responses retain their original request key.
-  for (const kind of ["booking", "experience"]) {
+  for (const kind of ["booking", "experience", "unified"]) {
     const storage = "shiap_checkout:" + kind;
     try {
       const request = JSON.parse(sessionStorage.getItem(storage) || "null");

@@ -28,6 +28,7 @@ type EventRow = {
 
 export default function BookingOperations({
   bookingId,
+  unified = false,
   orderStatus,
   paymentStatus,
   totalAmount,
@@ -37,6 +38,7 @@ export default function BookingOperations({
   customerNotes,
 }: {
   bookingId: string;
+  unified?: boolean;
   orderStatus: string;
   paymentStatus: string;
   totalAmount: number;
@@ -223,7 +225,7 @@ export default function BookingOperations({
             <button disabled={busy} onClick={() => void changeStatus("cancelled")} className="rounded-xl bg-slate-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Batalkan</button>
           </>}
           {orderStatus === "confirmed" && <>
-            <button disabled={busy || paymentStatus !== "paid"} onClick={() => void changeStatus("completed")} className="rounded-xl bg-[#1974FF] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40">Tandai selesai</button>
+            {!unified && <button disabled={busy || paymentStatus !== "paid"} onClick={() => void changeStatus("completed")} className="rounded-xl bg-[#1974FF] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40">Tandai selesai</button>}
             <button disabled={busy} onClick={() => void changeStatus("cancelled")} className="rounded-xl bg-slate-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Batalkan</button>
           </>}
         </div>

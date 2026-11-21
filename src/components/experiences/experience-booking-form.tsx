@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, LoaderCircle, ShieldCheck } from "lucide-react";
 import { checkoutBooking } from "@/lib/checkout-client";
+import { BOOKING_STORAGE_KEY, type BookingItem, formatRupiah } from "@/lib/booking-engine";
+import { bookingDate } from "@/lib/booking-view";
+import { eligibleUnifiedCart, unifiedCartPayload, unifiedCheckoutEnabled } from "@/lib/unified-checkout";
 import ServiceFeeSummary, { useServiceFeeQuote } from "@/components/booking/service-fee-summary";
 
 type Package = { id: string; title: string; price: number; price_label: string; pricing_basis: string; booking_mode: string; min_guests: number; max_guests: number; addons: { slug: string; name: string; price: number }[] };
@@ -25,6 +28,18 @@ export default function ExperienceBookingForm({ packages, sessions }: { packages
   const [details, setDetails] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [cart, setCart] = useState<BookingItem[]>([]);
+  const [includeCart, setIncludeCart] = useState(false);
+  useEffect(() => {
+    if (!unifiedCheckoutEnabled) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(BOOKING_STORAGE_KEY) ?? "[]");
+        setCart(Array.isArray(saved) && eligibleUnifiedCart(saved) ? saved : []);
+      } catch { setCart([]); }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function updateGuests(value: number) {
     if (!selectedPackage) return;
@@ -46,14 +61,29 @@ export default function ExperienceBookingForm({ packages, sessions }: { packages
       if (!selectedPackage || names.some((name) => !name.trim())) throw new Error("Isi nama setiap peserta.");
       if (!consent) throw new Error("Konfirmasi skrining kesehatan dan aturan keselamatan wajib dicentang.");
       if (!feeQuote.data) throw new Error("Tunggu rincian biaya layanan tersedia sebelum booking dikirim.");
-      const id = await checkoutBooking("experience", {
+      const payload = {
         p_package_id: packageId, p_session_id: sessionId || null,
         p_date: sessionId ? sessions.find((session) => session.id === sessionId)!.starts_at.slice(0, 10) : document.querySelector<HTMLInputElement>("#experience-date")?.value ?? "",
         p_guests: guests, p_customer_name: customer.name, p_customer_whatsapp: customer.whatsapp,
         p_customer_email: customer.email || null, p_customer_notes: customer.notes || null,
         p_participants: names.map((full_name) => ({ full_name: full_name.trim(), health_screening_confirmed: true, safety_rules_accepted: true })),
         p_addon_slugs: selectedAddons, p_request_details: details ? { special_requests: details } : {}, p_safety_consent: true,
-      });
+      };
+      const combined = includeCart && cart.length > 0;
+      const id = await checkoutBooking(combined ? "unified" : "experience", combined ? {
+        p_customer_name: payload.p_customer_name,
+        p_customer_whatsapp: payload.p_customer_whatsapp,
+        p_customer_email: payload.p_customer_email,
+        p_customer_notes: payload.p_customer_notes,
+        p_items: unifiedCartPayload(cart),
+        experience: payload,
+      } : payload);
+      if (combined) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(BOOKING_STORAGE_KEY) ?? "[]");
+          if (JSON.stringify(saved) === JSON.stringify(cart)) localStorage.removeItem(BOOKING_STORAGE_KEY);
+        } catch { /* The order was already created. */ }
+      }
       router.replace("/my-booking/" + id);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Permintaan booking belum dapat diproses.");
@@ -81,6 +111,14 @@ export default function ExperienceBookingForm({ packages, sessions }: { packages
     <textarea value={customer.notes} onChange={(e)=>setCustomer({...customer,notes:e.target.value})} placeholder="Catatan untuk admin (opsional)" rows={2} className="w-full rounded-xl border border-slate-200 p-3 text-sm"/>
     <label className="flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-[11px] leading-5 text-[#0A2E63]"><input type="checkbox" checked={consent} onChange={(e)=>setConsent(e.target.checked)} className="mt-1"/><span>Saya mengonfirmasi setiap peserta telah memberi informasi skrining kesehatan yang benar, memahami persyaratan aktivitas, dan menyetujui aturan keselamatan. SHIAP akan meninjau ketersediaan dan kecocokan sebelum pembayaran dibuka.</span></label>
     <div className="rounded-xl border border-orange-200 bg-orange-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-orange-800">Estimasi awal</p><ServiceFeeSummary quote={feeQuote.data} error={feeQuote.error} /><p className="mt-1 text-[10px] leading-4 text-slate-600">Harga akhir dan ketersediaan dikonfirmasi admin. Pembayaran dinonaktifkan sampai persetujuan.</p></div>
+    {cart.length > 0 && <fieldset className="space-y-2 rounded-xl border border-blue-100 p-3">
+      <legend className="font-bold text-[#0A2E63]">Gabungkan layanan</legend>
+      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={includeCart} onChange={(event) => setIncludeCart(event.target.checked)} />Sertakan layanan dari keranjang Booking</label>
+      {includeCart && <ul className="space-y-2 text-xs">
+        {cart.map((item) => <li key={item.id} className="break-words"><strong>{item.serviceName}</strong> · {bookingDate(item.dateStart)} · {item.guests} orang · {formatRupiah(item.stayRate ? item.stayRate.subtotal * item.quantity : Number(item.unitPrice) * item.guests)}</li>)}
+        <li>Masuk ke akun untuk checkout gabungan. Tagihan akhir dihitung saat reservasi dibuat dan pembayaran tersedia setelah semua persetujuan selesai.</li>
+      </ul>}
+    </fieldset>}
     {error && <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700"><AlertCircle size={15} className="shrink-0"/>{error}</p>}
     <button disabled={pending || !feeQuote.data || (needsSession && (!applicableSessions.length || !sessionId))} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1974FF] px-4 text-sm font-extrabold text-white hover:bg-[#0A2E63] disabled:opacity-60">{pending?<LoaderCircle size={17} className="animate-spin"/>:<ShieldCheck size={17}/>} {pending?"Mengirim permintaan...":"Kirim permintaan booking"}</button>
   </form>;

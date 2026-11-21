@@ -12,6 +12,8 @@ import ServiceCategoryIcon from "@/components/booking/service-category-icon";
 import PaymentProofUpload from "@/components/customer/payment-proof-upload";
 import TicketVouchers from "@/components/customer/ticket-vouchers";
 
+import { unifiedApprovalLabels, unifiedFulfillmentLabels, unifiedReservationLabels } from "@/lib/unified-checkout";
+
 const demo = process.env.NEXT_PUBLIC_SHIAP_DEMO_MODE === "true";
 
 export default function BookingDetailClient({ id }: { id: string }) {
@@ -103,14 +105,22 @@ export default function BookingDetailClient({ id }: { id: string }) {
           <span className="rounded-full bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-[#0A2E63]">{state?.label}</span>
         </div>
         <ul className="mt-1 divide-y divide-slate-100">
-          {order.booking_items.map((item) => <li key={item.id} className="flex gap-2 py-2.5">
+          {order.booking_items.map((item) => {
+            const line = detail.unified?.items.find((entry) => entry.item_id === item.id);
+            return <li key={item.id} className="flex gap-2 py-2.5">
             <ServiceCategoryIcon category={bookingItemCategory(item)} className="mt-0.5 text-[#1265D8]" />
             <div className="min-w-0 break-words"><h2 className="text-sm font-bold text-[#0A2E63]">{item.service_name}</h2>
               {item.variant && <p className="text-xs text-slate-600">{item.variant}</p>}
               <p className="text-xs text-slate-600">{bookingDate(item.date_start)}{item.date_end ? " – " + bookingDate(item.date_end) : ""}</p>
               <p className="text-xs text-slate-600">{item.guests} orang · {item.quantity} {item.service_type === "stay" ? "kamar" : "unit"}</p>
+              {line && <div className="mt-1 space-y-0.5 text-xs text-slate-600">
+                <p className="font-semibold text-[#0A2E63]">{formatRupiah(line.subtotal)}{line.fee > 0 && " + " + formatRupiah(line.fee) + " biaya layanan"}</p>
+                <p>{unifiedApprovalLabels[line.approval]} · {unifiedReservationLabels[line.reservation]}</p>
+                {line.review_open && <p>Sedang ditinjau SHIAP</p>}
+                {line.fulfillment !== "PENDING" && <p>{unifiedFulfillmentLabels[line.fulfillment]}</p>}
+              </div>}
             </div>
-          </li>)}
+          </li>; })}
         </ul>
       </section>
 
@@ -130,7 +140,9 @@ export default function BookingDetailClient({ id }: { id: string }) {
         </p> : null}
         {state?.key === "verification" && <p className="rounded-xl bg-blue-50 p-3 text-sm text-[#0A2E63]">Bukti diterima dan reservasi ditahan selama pemeriksaan mutasi bank.{overdue ? " Pemeriksaan perlu ditindaklanjuti. Hubungi SHIAP dengan kode pesanan." : " Status akan diperbarui setelah verifikasi admin."}</p>}
         {["expired", "cancelled"].includes(state?.key || "") && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Reservasi telah berakhir. Jika sudah transfer, hubungi SHIAP untuk pemeriksaan manual.</p>}
-        {!order.payment_enabled && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Permintaan menunggu persetujuan admin. Instruksi pembayaran muncul setelah disetujui.</p>}
+        {!order.payment_enabled && !detail.unified && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Permintaan menunggu persetujuan admin. Instruksi pembayaran muncul setelah disetujui.</p>}
+        {detail.unified && !detail.unified.payment_available && order.order_status === "pending_confirmation" && order.payment_status === "unpaid" &&
+          <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Instruksi pembayaran tersedia setelah seluruh layanan disetujui dan reservasi masih berlaku.</p>}
         {detail.experience?.review_note && <p className="text-sm text-slate-700">{detail.experience.review_note}</p>}
         {demo && <p className="rounded-xl bg-orange-50 p-3 text-sm text-orange-900">Mode demo. Pembayaran dan unggah bukti dinonaktifkan.</p>}
         {canPay && bank && <div className="space-y-2 rounded-xl bg-[#0A2E63] p-3 text-white">

@@ -1,6 +1,8 @@
 import type { CustomerOrder, ProofRecord } from "@/lib/booking-view";
 import { bookingContext, boundedBody, BookingError, clientAddress, ownerFilter, orderFields, privateHeaders, rateLimit, routeError, sameOrigin, uuidPattern } from "@/lib/customer-bookings";
 
+import { unifiedCheckoutEnabled } from "@/lib/unified-checkout";
+
 export async function GET() {
   try {
     const context = await bookingContext();
@@ -23,12 +25,14 @@ export async function POST(request: Request) {
     const id = request.headers.get("idempotency-key") || "";
     if (!uuidPattern.test(id)) throw new BookingError("Kunci checkout tidak valid.");
     const body = JSON.parse((await boundedBody(request, 64 * 1024)).toString("utf8"));
-    if (!body || !["booking", "experience"].includes(body.kind) || typeof body.payload !== "object" || !body.payload) throw new BookingError("Permintaan booking tidak valid.");
+    if (!body || !(["booking", "experience"].includes(body.kind) || (body.kind === "unified" && unifiedCheckoutEnabled)) || typeof body.payload !== "object" || !body.payload) throw new BookingError("Permintaan booking tidak valid.");
+    if (body.kind === "unified" && !context.user) throw new BookingError("Masuk ke akun untuk checkout gabungan.", 401);
     await rateLimit("checkout-address", await clientAddress(), 20, 3600);
     await rateLimit("checkout-owner", context.user?.id || context.guest!, 10, 3600);
     const { data, error } = await context.admin.rpc("checkout_booking", {
       p_actor: context.user?.id ?? null, p_guest_hash: context.hash, p_request_id: id, p_payload: body.payload, p_kind: body.kind,
     });
+    if (error && ["40001", "55P03", "40P01"].includes(error.code)) throw new BookingError("Ketersediaan sedang diperbarui. Coba lagi.", 409);
     if (error) throw new BookingError(error.code === "P0001" || error.code === "23514" ? error.message : "Booking belum dapat diproses. Periksa data layanan dan Pesanan Saya.");
     const result = Array.isArray(data) ? data[0] : data;
     if (!result?.id) throw new BookingError("Pesanan belum dapat dikonfirmasi. Periksa Pesanan Saya.", 503);

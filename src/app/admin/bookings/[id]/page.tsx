@@ -8,6 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import BookingOperations from "@/components/admin/booking-operations";
 import ExperienceRequestReview from "@/components/admin/experience-request-review";
 import BookingWhatsApp from "@/components/admin/booking-whatsapp";
+import UnifiedItemActions from "@/components/admin/unified-item-actions";
+import { bookingAdmin } from "@/lib/supabase/booking-admin";
+import { unifiedCheckoutEnabled, unifiedApprovalLabels, unifiedFulfillmentLabels, type UnifiedBookingView } from "@/lib/unified-checkout";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +63,9 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
 
   if (error) return <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Detail booking gagal dimuat: {error.message}</p>;
   if (!order) notFound();
+  const unifiedResult = unifiedCheckoutEnabled ? await bookingAdmin().rpc("server_unified_booking_view", { p_booking: id }) : null;
+  if (unifiedResult?.error) return <p role="alert" className="text-sm text-red-700">Status layanan belum dapat dimuat.</p>;
+  const unified = (unifiedResult?.data ?? null) as UnifiedBookingView | null;
   const { data: experienceRequest } = await supabase.from("shiap_experience_booking_records").select("id,request_status,booking_mode,participant_count,participant_data,selected_addons,request_details,review_note").eq("booking_id", id).maybeSingle();
 
   const { data: contacts, error: vendorError } = await supabase.rpc("admin_booking_vendor_contacts", { p_booking_id: id });
@@ -113,6 +119,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
           {vendorError && <p role="alert" className="text-xs text-amber-800">Kontak vendor gagal dimuat.</p>}
           {order.booking_items.map((item) => {
             const vendor = vendorByItem.get(item.id);
+            const line = unified?.items.find((entry) => entry.item_id === item.id);
             const dates = dateOnly(item.date_start) + (item.date_end ? " – " + dateOnly(item.date_end) : "");
             const vendorLink = vendor && vendorWhatsAppLink(vendor.whatsapp, order.order_number, item.service_name, dates, item.guests, item.quantity);
             return (
@@ -134,6 +141,12 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
                 <div className="flex items-center gap-2 text-xs text-slate-600"><Users size={15} className="text-[#1974FF]"/><span>{item.guests} tamu</span></div>
                 <div className="flex items-center gap-2 text-xs text-slate-600"><Layers3 size={15} className="text-[#1974FF]"/><span>{item.quantity} unit</span></div>
               </div>
+              {line && <>
+                <p className="mt-2 text-xs text-slate-600">{unifiedApprovalLabels[line.approval]} · {unifiedFulfillmentLabels[line.fulfillment]}
+                  {line.review_open && " · Tinjauan Finance terbuka"}</p>
+                <p className="text-xs text-[#0A2E63]">Subtotal {rupiah(line.subtotal)} · Biaya layanan {rupiah(line.fee)}</p>
+                <UnifiedItemActions item={line} canComplete={order.order_status === "confirmed" && order.payment_status === "paid"} />
+              </>}
               {item.notes && <p className="mt-3 text-xs leading-5 text-slate-500">Catatan layanan: {item.notes}</p>}
               {vendor && vendorLink && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
                 <div className="min-w-0"><p className="text-xs text-slate-500">Vendor/PIC</p><p className="break-words text-sm font-bold">{vendor.name}</p><p className="text-xs text-slate-600">+{vendor.whatsapp}</p></div>
@@ -148,7 +161,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
 
       {experienceRequest && <ExperienceRequestReview record={experienceRequest as Parameters<typeof ExperienceRequestReview>[0]["record"]}/>}
 
-      <BookingOperations bookingId={order.id} orderStatus={order.order_status} paymentStatus={order.payment_status} totalAmount={Number(order.total_amount)} customerName={order.customer_name} customerWhatsapp={order.customer_whatsapp} customerEmail={order.customer_email ?? ""} customerNotes={order.customer_notes ?? ""} />
+      <BookingOperations bookingId={order.id} unified={Boolean(unified)} orderStatus={order.order_status} paymentStatus={order.payment_status} totalAmount={Number(order.total_amount)} customerName={order.customer_name} customerWhatsapp={order.customer_whatsapp} customerEmail={order.customer_email ?? ""} customerNotes={order.customer_notes ?? ""} />
 
       <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 p-4 text-xs leading-5 text-orange-900">
         Status booking dan pembayaran dapat dikelola melalui panel operasional di atas. Total tagihan dihitung server dari harga katalog saat booking dibuat.

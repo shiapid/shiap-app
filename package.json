@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src proxy.ts scripts eslint.config.mjs next.config.ts",
-    "test": "node --experimental-strip-types --test scripts/booking-category.test.mjs scripts/trip-catalog-mapper.test.mjs scripts/explore-destinations.test.mjs scripts/booking-status.test.mjs scripts/check-booking-production.test.mjs scripts/notifications.test.mjs scripts/smtp.test.mjs scripts/admin-operations.test.mjs scripts/places.test.mjs scripts/eticket.test.mjs scripts/destinations.test.mjs scripts/vendor-contact.test.mjs scripts/rupiah-input.test.mjs scripts/admin-navigation.test.mjs scripts/stay-v2-plans.test.mjs"
+    "test": "node --experimental-strip-types --test scripts/booking-category.test.mjs scripts/trip-catalog-mapper.test.mjs scripts/explore-destinations.test.mjs scripts/booking-status.test.mjs scripts/check-booking-production.test.mjs scripts/notifications.test.mjs scripts/smtp.test.mjs scripts/admin-operations.test.mjs scripts/places.test.mjs scripts/eticket.test.mjs scripts/destinations.test.mjs scripts/vendor-contact.test.mjs scripts/rupiah-input.test.mjs scripts/admin-navigation.test.mjs scripts/stay-v2-plans.test.mjs scripts/unified-checkout.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

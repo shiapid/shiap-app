@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin/guard";
 import { createClient } from "@/lib/supabase/server";
 import { bookingAdmin } from "@/lib/supabase/booking-admin";
 import { BookingError } from "@/lib/customer-bookings";
+import { unifiedCheckoutEnabled, type UnifiedBookingView } from "@/lib/unified-checkout";
 import { renderEmail, type MessageBooking, type MessageContext } from "./messages";
 import type { EmailMessage } from "./provider";
 import { smtpConfiguration, smtpProvider } from "./smtp";
@@ -31,6 +32,11 @@ export async function bookingMessageContext(id: string, itemId?: string | null):
   const admin = bookingAdmin();
   const { data: booking, error } = await admin.from("booking_orders").select("id,order_number,customer_name,customer_whatsapp,customer_email,user_id,order_status,payment_status,payment_enabled,total_amount,inventory_hold_expires_at,booking_items(id,service_name,date_start,date_end,trip_id,departure_id,property_id,service_catalog_id)").eq("id",id).single();
   if (error || !booking) throw new BookingError("Booking tidak tersedia.",404);
+  const unified = unifiedCheckoutEnabled && booking.payment_enabled ?
+    await admin.rpc("server_unified_booking_view", { p_booking: id }) : null;
+  if (unified?.error) throw new BookingError("Status pembayaran belum dapat dimuat.", 503);
+  const eligibility = (unified?.data ?? null) as UnifiedBookingView | null;
+  const paymentEnabled = booking.payment_enabled && (!eligibility || eligibility.payment_available);
   const items = (booking.booking_items as MessageBooking["booking_items"]).filter((item) => !itemId || item.id === itemId);
   const [bank, trips, departures, stays, experiences, sessions] = await Promise.all([
     admin.from("payment_settings").select("bank_name,account_name,account_number,is_active").eq("id",true).maybeSingle(),
@@ -57,8 +63,8 @@ export async function bookingMessageContext(id: string, itemId?: string | null):
     const end = departure.end_date ? " – " + new Intl.DateTimeFormat("id-ID",{dateStyle:"long",timeZone:"UTC"}).format(new Date(departure.end_date + "T00:00:00Z")) : "";
     return date + end + (departure.departure_time ? " · " + departure.departure_time.slice(0,5) + " WITA" : "");
   });
-  return { booking: { ...booking, booking_items: items } as MessageBooking, location, schedule: exact.length ? exact.join("\n") : departureSchedules.length ? departureSchedules.join("\n") : undefined,
-    bank: booking.payment_enabled && bank.data?.is_active ? `${bank.data.bank_name}\n${bank.data.account_number}\na.n. ${bank.data.account_name}` : "" };
+  return { booking: { ...booking, payment_enabled: paymentEnabled, booking_items: items } as MessageBooking, location, schedule: exact.length ? exact.join("\n") : departureSchedules.length ? departureSchedules.join("\n") : undefined,
+    bank: paymentEnabled && !eligibility && bank.data?.is_active ? `${bank.data.bank_name}\n${bank.data.account_number}\na.n. ${bank.data.account_name}` : "" };
 }
 
 export async function dispatchNotifications() {
