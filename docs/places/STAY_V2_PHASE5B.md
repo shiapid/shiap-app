@@ -12,8 +12,8 @@
 
 ## Open activation requirements
 
-The UI is a read-only preview. The Partner withdrawal form and operator review console still need integration with the existing RPCs and the private evidence upload. A successful outgoing Partner transfer later returned by the bank needs a separate compensating journal. Contract-authorized recoupment requires evidence and paired per-item adjustments. Unresolved historical openings and bank-return suspense must remain held through reconciliation. No production payout or feature activation is authorized by this checkpoint.
+The Partner form and Finance console are gated by the separate server flag `SHIAP_STAY_PAYOUT_UI_ENABLED=true`. The database gate remains independent. Evidence is stored in a private bucket scoped to payout operators. A returned payout restores the payable with a compensating journal, preserves the original transfer, and holds the item for reconciliation. Contract-authorized recoupment still requires an explicit policy and paired per-item adjustments. Unresolved historical openings, bank-return suspense, and returned payouts remain held.
 
 ## QA
 
-Database smoke covers verified earnings, cross-property denial, the default-off switch, the 50% cumulative early cap, distinct owner/Finance permissions, verified beneficiary, idempotent paid confirmation, held funds during refund review, final settlement after confirmed check-out, and releasing a failed payout reservation. The separate concurrency suite proves one of two competing requests can reserve the full early limit. All requests, bank evidence, and transfers were synthetic.
+Database smoke covers verified earnings, cross-property denial, the default-off switch, the 50% cumulative early cap, distinct owner/Finance permissions, verified beneficiary, idempotent paid confirmation, held funds during refund review, final settlement after confirmed check-out, and releasing a failed payout reservation, and compensating an already recorded payout returned by the bank. The separate concurrency suite proves one of two competing requests can reserve the full early limit. All requests, bank evidence, and transfers were synthetic.

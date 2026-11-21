@@ -97,6 +97,8 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   const from = param(params, "from"), to = param(params, "to");
   const service = param(params, "service"), status = param(params, "status"), payment = param(params, "payment");
   const supabase = await createClient();
+  const payoutAccess = process.env.SHIAP_STAY_PAYOUT_UI_ENABLED === "true"
+    ? (await supabase.rpc("can_manage_stay_payouts")).data : false;
   let bookingsQuery = supabase.from("finance_booking_profit_v").select("*").order("created_at", { ascending: false }).limit(1000);
   if (from) bookingsQuery = bookingsQuery.gte("created_at", `${from}T00:00:00+08:00`);
   if (to) bookingsQuery = bookingsQuery.lt("created_at", `${nextDate(to)}T00:00:00+08:00`);
@@ -185,6 +187,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
 
   return <div className="space-y-6">
     <PlacesPlatformRevenue from={from} to={to} />
+    {payoutAccess && <Link href="/admin/finance/stay-payouts" className="inline-flex min-h-11 items-center rounded-lg border border-blue-200 bg-white px-4 text-sm font-bold text-[#1265D8]">Pencairan Partner Stay</Link>}
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[10px] font-extrabold tracking-[.22em] text-[#1974FF]">ADMIN / FINANCE</p><h1 className="mt-1 text-2xl font-extrabold text-[#0A2E63]">Finance & Profit Analytics</h1><p className="mt-1 max-w-2xl text-sm text-slate-500">Pisahkan nilai booking, pendapatan terealisasi, kas masuk, piutang, estimasi biaya, dan biaya aktual.</p></div><Link href={`/api/admin/finance/export${csvQuery ? `?${csvQuery}` : ""}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0A2E63] px-4 text-xs font-bold text-white hover:bg-[#123e78]"><FileDown size={15}/>Export laporan CSV</Link></header>
 
     {queryError || recognizedResult.error || serviceItemsResult.error ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><strong>Laporan keuangan tidak lengkap.</strong> Schema Finance lokal perlu diterapkan dan cache API diperbarui. {queryError?.message ?? recognizedResult.error?.message ?? serviceItemsResult.error?.message}</div> : null}

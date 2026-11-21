@@ -24,6 +24,7 @@ declare
   bank_name text;
   evidence text;
   transfer jsonb;
+  journal_id uuid;
 begin
   select jsonb_build_object('p_customer_name','Synthetic Wallet Guest','p_customer_whatsapp','620000000000',
     'p_items',jsonb_build_array(jsonb_build_object('service_type','stay','property_id',f.stay,
@@ -61,7 +62,7 @@ begin
   select c.bank_name,'123456'||c.bank_last4 into strict bank_name,beneficiary
     from public.stay_partner_booking_config c where c.places_id=places;
   evidence:=admin_id||'/'||gen_random_uuid();
-  insert into storage.objects(bucket_id,name,owner_id) values('finance-bank-evidence',evidence,admin_id::text);
+  insert into storage.objects(bucket_id,name,owner_id) values('stay-payout-evidence',evidence,admin_id::text);
   account_id:=public.admin_verify_stay_payout_account(places,bank_name,beneficiary,evidence);
 
   perform set_config('request.jwt.claim.sub',owner_id::text,true);
@@ -73,6 +74,13 @@ begin
   update shiap_private.stay_payout_control set enabled=true where id;
   perform public.partner_request_stay_withdrawal(withdrawal,item,account_id,1000);
   perform public.partner_request_stay_withdrawal(withdrawal,item,account_id,1000);
+  if not exists(select 1 from public.read_stay_partner_payout_accounts() a where a.id=account_id) then
+    raise exception 'Verified payout account not available in Partner form';
+  end if;
+  begin
+    perform public.admin_read_stay_payout_queue();
+    raise exception 'Owner accessed Finance-only queue';
+  exception when insufficient_privilege then null; end;
   begin
     perform public.partner_request_stay_withdrawal(second,item,account_id,expected_net/2);
     raise exception 'Pending payout did not reserve cumulative early capacity';
@@ -83,13 +91,16 @@ begin
   exception when insufficient_privilege then null; end;
 
   perform set_config('request.jwt.claim.sub',admin_id::text,true);
+  if not exists(select 1 from public.admin_read_stay_payout_queue() q where q.id=withdrawal and q.status='PENDING') then
+    raise exception 'Finance could not see pending payout';
+  end if;
   perform public.admin_manage_stay_withdrawal(gen_random_uuid(),withdrawal,'APPROVE','Synthetic payout approval');
   if exists(select 1 from shiap_private.stay_withdrawal_transfers where withdrawal_id=withdrawal) then
     raise exception 'Approval was recorded as bank payment';
   end if;
   perform public.admin_manage_stay_withdrawal(gen_random_uuid(),withdrawal,'START','Synthetic payout authorized');
   evidence:=admin_id||'/'||payout_event;
-  insert into storage.objects(bucket_id,name,owner_id) values('finance-bank-evidence',evidence,admin_id::text);
+  insert into storage.objects(bucket_id,name,owner_id) values('stay-payout-evidence',evidence,admin_id::text);
   transfer:=jsonb_build_object('bank_id','QA-PARTNER-PAYOUT','occurred_at',clock_timestamp(),
     'evidence',evidence,'amount',1000,'source_account','1234567890','beneficiary_account',beneficiary);
   begin
@@ -157,7 +168,7 @@ begin
   perform public.admin_manage_stay_withdrawal(gen_random_uuid(),second,'START','Synthetic final payout authorized');
   payout_event:=gen_random_uuid();
   evidence:=admin_id||'/'||payout_event;
-  insert into storage.objects(bucket_id,name,owner_id) values('finance-bank-evidence',evidence,admin_id::text);
+  insert into storage.objects(bucket_id,name,owner_id) values('stay-payout-evidence',evidence,admin_id::text);
   perform public.admin_manage_stay_withdrawal(payout_event,second,'FAIL','Synthetic failed bank transfer verified',
     jsonb_build_object('evidence',evidence));
   perform set_config('request.jwt.claim.sub',owner_id::text,true);
@@ -166,6 +177,27 @@ begin
     or (wallet#>>'{totals,reserved_idr}')::bigint is distinct from 0::bigint
     or exists(select 1 from shiap_private.stay_withdrawal_transfers where withdrawal_id=second) then
     raise exception 'Failed bank transfer did not release its reservation';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',admin_id::text,true);
+  select j.id into strict journal_id from shiap_private.stay_finance_journals j
+    where j.source_kind='PAYOUT_PAID' and j.source_id=withdrawal;
+  payout_event:=gen_random_uuid();
+  evidence:=admin_id||'/'||payout_event;
+  insert into storage.objects(bucket_id,name,owner_id) values('stay-payout-evidence',evidence,admin_id::text);
+  perform public.admin_record_stay_finance_bank_return(journal_id,payout_event,'QA-PARTNER-RETURN',1000,
+    clock_timestamp(),evidence,'Synthetic verified bank payout return');
+  if not exists(select 1 from public.admin_stay_finance_reconciliation() r
+    where r.booking_id=booking and r.state='PARTNER_PAYOUT_RETURNED') then
+    raise exception 'Payout returned by the bank absent from reconciliation';
+  end if;
+  perform set_config('request.jwt.claim.sub',owner_id::text,true);
+  wallet:=public.read_stay_partner_wallet(places);
+  if (wallet#>>'{totals,held_idr}')::bigint is distinct from expected_net
+    or (wallet#>>'{totals,payout_paid_idr}')::bigint is distinct from 0::bigint
+    or (wallet#>>'{totals,verified_earnings_idr}')::bigint is distinct from expected_net
+    or not exists(select 1 from jsonb_array_elements(wallet->'withdrawals') w where w->>'status'='RETURNED') then
+    raise exception 'Returned payout did not restore payable and report held funds';
   end if;
 end $$;
 rollback;

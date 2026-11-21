@@ -10,6 +10,25 @@ create table shiap_private.stay_payout_operators (
   user_id uuid primary key references public.admin_users(user_id) on delete cascade
 );
 
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values('stay-payout-evidence','stay-payout-evidence',false,5242880,array['application/pdf','image/png','image/jpeg']);
+
+create function public.can_manage_stay_payouts() returns boolean
+language sql stable security definer set search_path='' as $$
+  select public.is_shiap_admin() and exists(
+    select 1 from shiap_private.stay_payout_operators p where p.user_id=auth.uid()
+  )
+$$;
+revoke all on function public.can_manage_stay_payouts() from public,anon,authenticated,service_role;
+grant execute on function public.can_manage_stay_payouts() to authenticated;
+
+create policy stay_payout_evidence_insert on storage.objects for insert to authenticated
+with check (bucket_id='stay-payout-evidence' and public.can_manage_stay_payouts()
+  and owner_id=auth.uid()::text and split_part(name,'/',1)=auth.uid()::text
+  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}$');
+create policy stay_payout_evidence_read on storage.objects for select to authenticated
+using (bucket_id='stay-payout-evidence' and public.can_manage_stay_payouts());
+
 create table shiap_private.stay_payout_accounts (
   id uuid primary key default gen_random_uuid(),
   places_id uuid not null references public.places_properties(id) on delete restrict,
@@ -123,7 +142,7 @@ begin
   if not exists(select 1 from public.stay_partner_booking_config c where c.places_id=p_places and c.bank_verified_at is not null
     and lower(btrim(c.bank_name))=lower(btrim(p_bank)) and c.bank_last4=right(account_digits,4))
     or length(account_digits) not between 6 and 34 or not exists(select 1 from storage.objects o
-      where o.bucket_id='finance-bank-evidence' and o.name=p_evidence and o.owner_id=auth.uid()::text) then
+      where o.bucket_id='stay-payout-evidence' and o.name=p_evidence and o.owner_id=auth.uid()::text) then
     raise exception 'Rekening harus cocok dengan verifikasi Partner dan bukti privat.' using errcode='22023';
   end if;
   if exists(select 1 from shiap_private.stay_withdrawals w join shiap_private.stay_payout_accounts a on a.id=w.account_id
@@ -233,7 +252,7 @@ begin
     raise exception 'Saldo atau rekening berubah. Tinjau kembali pencairan.' using errcode='23514';
   end if;
   if p_action in ('FAIL','PAY') and (path is distinct from auth.uid()::text||'/'||p_event::text
-    or not exists(select 1 from storage.objects o where o.bucket_id='finance-bank-evidence' and o.name=path and o.owner_id=auth.uid()::text)) then
+    or not exists(select 1 from storage.objects o where o.bucket_id='stay-payout-evidence' and o.name=path and o.owner_id=auth.uid()::text)) then
     raise exception 'Bukti mutasi privat diperlukan.' using errcode='22023';
   end if;
   if p_action='PAY' then
