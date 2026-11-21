@@ -1,5 +1,6 @@
 import BookingCalendar, { type CalendarBlockRecord, type CalendarBookingRecord } from "@/components/admin/booking-calendar";
 import { isStayDate, todayInStay } from "@/lib/admin/stay-navigation";
+import { unifiedCheckoutEnabled } from "@/lib/unified-checkout";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,16 @@ export default async function AdminCalendarPage({ searchParams }: { searchParams
     supabase.from("shiap_experiences").select("id,title,location,experience_type").order("title"),
   ]);
 
+  let bookings = (bookingResult.data ?? []) as CalendarBookingRecord[];
+  if (unifiedCheckoutEnabled) {
+    const itemIds = bookings.flatMap((booking) => booking.booking_items.map((item) => item.id));
+    const batches = Array.from({ length: Math.ceil(itemIds.length / 200) }, (_, index) =>
+      supabase.rpc("admin_cancelled_unified_item_ids", { p_items: itemIds.slice(index * 200, (index + 1) * 200) }));
+    const results = await Promise.all(batches);
+    if (results.some((result) => result.error)) return <p role="alert" className="text-sm text-red-700">Status pembatalan layanan belum dapat dimuat.</p>;
+    const cancelled = new Set(results.flatMap((result) => (result.data ?? []).map((row: { item_id: string }) => row.item_id)));
+    bookings = bookings.map((booking) => ({ ...booking, booking_items: booking.booking_items.filter((item) => !cancelled.has(item.id)) }));
+  }
   const tripOptions = (tripResult.data ?? []).map((row) => ({ id: row.id, title: row.title }));
   const stayOptions = (stayResult.data ?? []).map((row) => ({ id: row.id, title: row.name }));
   const experiences = experienceResult.data ?? [];
@@ -23,7 +34,7 @@ export default async function AdminCalendarPage({ searchParams }: { searchParams
   const room = property && typeof query.room === "string" && /^[0-9a-f-]{36}$/i.test(query.room) ? query.room : undefined;
   const date = isStayDate(query.date) ? query.date : todayInStay();
   return <BookingCalendar key={`${stayOnly}:${property}:${room}:${date}`} stayOnly={stayOnly} stayProperty={property} stayRoom={room} initialDate={date}
-    bookings={(bookingResult.data ?? []) as CalendarBookingRecord[]}
+    bookings={bookings}
     initialBlocks={(blockResult.data ?? []) as CalendarBlockRecord[]}
     catalogs={{
       trip: tripOptions,

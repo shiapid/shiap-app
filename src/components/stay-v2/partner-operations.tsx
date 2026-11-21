@@ -1,3 +1,5 @@
+import { itemRefundLabels } from "@/lib/unified-refunds";
+import { formatRupiah } from "@/lib/booking-engine";
 import { StayV2MutationForm } from "@/components/stay-v2/mutation-form";
 import { saveStayPartnerOperation } from "@/app/partner/stay/operations/actions";
 import { stayPartnerItemActions, type StayPartnerCalendarNight, type StayPartnerOperations } from "@/lib/stay-v2/operations";
@@ -181,6 +183,11 @@ export function StayPartnerOperationsPanel({ data, admin, calendar, calendarRoom
           <p className="text-xs">{dates.format(new Date(item.check_in_at))} – {dates.format(new Date(item.check_out_at))} WITA</p>
           <p className="my-2 text-sm">{item.quantity} unit · {item.guests} tamu · {item.payment_status}</p>
           {item.guest_name && <p className="my-2 text-sm">{item.guest_name} · {item.guest_whatsapp}</p>}
+          {item.refund && item.refund.requests.length > 0 && <div className="my-2 rounded-lg bg-white p-2 text-xs">
+            <p className="font-semibold">Refund layanan ini · Dibayar {formatRupiah(item.refund.paid)}</p>
+            {item.refund.requests.map((refund) => <p key={refund.id}>{itemRefundLabels[refund.status]} · Diajukan {formatRupiah(refund.requested)}
+              {refund.approved !== null && " · Disetujui " + formatRupiah(refund.approved)}</p>)}
+          </div>}
           {item.operational_hold && <p className="my-2 text-sm text-amber-800">Pemenuhan ditahan Admin.</p>}
           {actions.length > 0 && <StayV2MutationForm action={saveStayPartnerOperation} label="Catat keputusan">
             <Hidden name="kind" value="item" /><Hidden name="item" value={item.item_id} />

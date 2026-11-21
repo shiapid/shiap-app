@@ -6,6 +6,9 @@ export const notificationLabels: Record<string, string> = {
   booking_expired: "Booking kedaluwarsa", travel_reminder: "Pengingat perjalanan / check-in", approval_required: "Perlu persetujuan Admin",
   activity_today: "Keberangkatan / check-in hari ini", delivery_failed: "Pengiriman email gagal",
   trip_schedule_changed: "Perubahan jadwal Trip",
+  item_refund_requested: "Refund layanan diajukan", item_refund_approved: "Refund layanan disetujui",
+  item_refund_rejected: "Refund layanan ditolak", item_refund_paid: "Refund layanan dibayar",
+  booking_item_cancelled: "Layanan dibatalkan",
 };
 export type MessageBooking = {
   id: string; order_number: string; customer_name: string; customer_whatsapp: string; customer_email: string | null;
@@ -56,6 +59,11 @@ export function renderEmail(event: string, context: MessageContext, audience: st
     proof_received: "Bukti transfer telah diterima. Admin sedang memeriksa dana masuk dan nominal penuh. Bukti diterima belum berarti pembayaran berhasil atau lunas.",
     payment_verified: "Admin telah memverifikasi pembayaran penuh terhadap dana bank yang diterima. Periksa status layanan di Pesanan Saya.",
     payment_rejected: "Bukti transfer memerlukan tindakan. Periksa alasan penolakan di Pesanan Saya lalu ikuti petunjuk Admin. Jika reservasi sudah berakhir, hubungi SHIAP.",
+    item_refund_requested: "Permintaan refund untuk layanan ini tercatat dan menunggu tinjauan Finance.",
+    item_refund_approved: "Finance menyetujui refund untuk layanan ini. Transfer masih menunggu pencatatan.",
+    item_refund_rejected: "Finance tidak menyetujui permintaan refund untuk layanan ini. Periksa rincian pesanan.",
+    item_refund_paid: "Finance telah mencatat transfer refund untuk layanan ini berdasarkan mutasi bank.",
+    booking_item_cancelled: "Layanan ini dibatalkan. Periksa status layanan lain dan refund pada rincian pesanan.",
     booking_cancelled: "Status pesanan telah berubah menjadi dibatalkan. Jika sudah transfer, hubungi SHIAP untuk pemeriksaan manual. Pesan ini tidak mengonfirmasi refund.",
     booking_expired: "Reservasi telah kedaluwarsa. Jangan transfer ke pesanan ini. Jika sudah transfer, hubungi SHIAP untuk pemeriksaan manual.",
     trip_schedule_changed: "Jadwal Trip pada pesanan Anda telah diperbarui. Periksa tanggal, waktu, titik temu, dan status terbaru pada detail pesanan sebelum berangkat.",
@@ -64,13 +72,16 @@ export function renderEmail(event: string, context: MessageContext, audience: st
     activity_today: "Terdapat layanan yang dijadwalkan hari ini. Periksa rincian dan kesiapan operasional.",
   };
   const title = notificationLabels[event] || "Informasi pesanan SHIAP";
-  const paragraphs = ["Halo " + variables.customer_name + ",", explanations[event] || "Periksa status pesanan Anda.",
+  const partner = audience === "partner";
+  const paragraphs = partner ? [explanations[event] || "Periksa status layanan Anda.",
+    "Kode booking: " + variables.booking_code, "Layanan: " + variables.services,
+    "Masuk ke dashboard Partner untuk melihat rincian layanan Anda."] : ["Halo " + variables.customer_name + ",", explanations[event] || "Periksa status pesanan Anda.",
     "Kode booking: " + variables.booking_code, "Layanan: " + variables.services, "Total Pembayaran 100%: " + variables.total,
     ...(["booking_created","payment_reminder"].includes(event) ? ["Batas pembayaran: " + variables.deadline] : []),
     ...(["travel_reminder","activity_today","trip_schedule_changed"].includes(event) ? [variables.schedule,variables.location] : []),
     audience === "admin" ? "Notifikasi operasional untuk Admin SHIAP." : variables.access_instructions];
-  const url = audience === "admin" ? "https://app.shiap.id/admin/bookings/" + encodeURIComponent(context.booking.id) : variables.booking_url;
+  const url = partner ? "https://app.shiap.id/partner/stay/operations" : audience === "admin" ? "https://app.shiap.id/admin/bookings/" + encodeURIComponent(context.booking.id) : variables.booking_url;
   const text = [title,...paragraphs,url].join("\n\n");
-  const html = `<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="UTF-8"></head><body style="margin:0;background:#F7F9FC;font-family:Arial,sans-serif;color:#0A2E63"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:auto;background:white;border-radius:16px"><tr><td style="padding:24px"><p style="color:#1265D8;font-weight:bold">SHIAP</p><h1 style="font-size:22px">${escapeHtml(title)}</h1>${paragraphs.map((p) => `<p style="font-size:15px;line-height:1.6;overflow-wrap:anywhere">${escapeHtml(p).replaceAll("\n","<br>")}</p>`).join("")}<a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 18px;background:#1265D8;color:white;border-radius:10px;text-decoration:none">${audience === "admin" ? "Buka booking" : "Lihat Pesanan Saya"}</a><p style="font-size:12px;color:#64748B;margin-top:24px">Pesan transaksional SHIAP. Jangan bagikan informasi akses akun atau bukti pembayaran.</p></td></tr></table></td></tr></table></body></html>`;
+  const html = `<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="UTF-8"></head><body style="margin:0;background:#F7F9FC;font-family:Arial,sans-serif;color:#0A2E63"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td style="padding:20px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:auto;background:white;border-radius:16px"><tr><td style="padding:24px"><p style="color:#1265D8;font-weight:bold">SHIAP</p><h1 style="font-size:22px">${escapeHtml(title)}</h1>${paragraphs.map((p) => `<p style="font-size:15px;line-height:1.6;overflow-wrap:anywhere">${escapeHtml(p).replaceAll("\n","<br>")}</p>`).join("")}<a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 18px;background:#1265D8;color:white;border-radius:10px;text-decoration:none">${partner ? "Buka dashboard Partner" : audience === "admin" ? "Buka booking" : "Lihat Pesanan Saya"}</a><p style="font-size:12px;color:#64748B;margin-top:24px">Pesan transaksional SHIAP. Jangan bagikan informasi akses akun atau bukti pembayaran.</p></td></tr></table></td></tr></table></body></html>`;
   return { subject: (title + " · " + variables.booking_code).replace(/[\r\n]/g," "), text, html };
 }

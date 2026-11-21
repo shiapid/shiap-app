@@ -21,7 +21,7 @@ function read(name) {
   return readFileSync(new URL(name, import.meta.url), "utf8").replaceAll("\r\n", "\n");
 }
 
-const demo = read("unified_checkout_smoke.sql").split("do $$")[0].replace(/^begin;\n/, "").replace(/^\\ir .*\n/gm, "");
+const demo = read("unified_checkout_catalog_fixture.sql");
 const fixture = (read("unified_checkout_fixture.sql") + "\n" + demo)
   .replaceAll("pg_temp.", "unified_test.")
   .replaceAll("create temp table", "create table");

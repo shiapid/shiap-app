@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import BookingOperations from "@/components/admin/booking-operations";
 import ExperienceRequestReview from "@/components/admin/experience-request-review";
 import BookingWhatsApp from "@/components/admin/booking-whatsapp";
+import UnifiedRefundPanel from "@/components/admin/unified-refund-panel";
+import type { RefundReport } from "@/lib/unified-refunds";
 import UnifiedItemActions from "@/components/admin/unified-item-actions";
 import { bookingAdmin } from "@/lib/supabase/booking-admin";
 import { unifiedCheckoutEnabled, unifiedApprovalLabels, unifiedFulfillmentLabels, type UnifiedBookingView } from "@/lib/unified-checkout";
@@ -66,6 +68,8 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
   const unifiedResult = unifiedCheckoutEnabled ? await bookingAdmin().rpc("server_unified_booking_view", { p_booking: id }) : null;
   if (unifiedResult?.error) return <p role="alert" className="text-sm text-red-700">Status layanan belum dapat dimuat.</p>;
   const unified = (unifiedResult?.data ?? null) as UnifiedBookingView | null;
+  const reportResult = unified ? await supabase.rpc("admin_unified_refund_report", { p_booking: id }) : null;
+  const refundReport = reportResult?.data as RefundReport | undefined;
   const { data: experienceRequest } = await supabase.from("shiap_experience_booking_records").select("id,request_status,booking_mode,participant_count,participant_data,selected_addons,request_details,review_note").eq("booking_id", id).maybeSingle();
 
   const { data: contacts, error: vendorError } = await supabase.rpc("admin_booking_vendor_contacts", { p_booking_id: id });
@@ -120,6 +124,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
           {order.booking_items.map((item) => {
             const vendor = vendorByItem.get(item.id);
             const line = unified?.items.find((entry) => entry.item_id === item.id);
+            const allocation = refundReport?.items.find((entry) => entry.item_id === item.id);
             const dates = dateOnly(item.date_start) + (item.date_end ? " – " + dateOnly(item.date_end) : "");
             const vendorLink = vendor && vendorWhatsAppLink(vendor.whatsapp, order.order_number, item.service_name, dates, item.guests, item.quantity);
             return (
@@ -145,7 +150,9 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
                 <p className="mt-2 text-xs text-slate-600">{unifiedApprovalLabels[line.approval]} · {unifiedFulfillmentLabels[line.fulfillment]}
                   {line.review_open && " · Tinjauan Finance terbuka"}</p>
                 <p className="text-xs text-[#0A2E63]">Subtotal {rupiah(line.subtotal)} · Biaya layanan {rupiah(line.fee)}</p>
-                <UnifiedItemActions item={line} canComplete={order.order_status === "confirmed" && order.payment_status === "paid"} />
+                {!line.cancelled_at && <UnifiedItemActions item={line} canComplete={order.order_status === "confirmed" && order.payment_status === "paid"} />}
+                {allocation && <UnifiedRefundPanel item={allocation} requests={refundReport?.requests.filter((entry) => entry.item_id === item.id) ?? []} />}
+                {reportResult?.error && <p role="alert" className="text-red-700">Alokasi refund belum dapat dimuat.</p>}
               </>}
               {item.notes && <p className="mt-3 text-xs leading-5 text-slate-500">Catatan layanan: {item.notes}</p>}
               {vendor && vendorLink && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">

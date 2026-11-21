@@ -12,6 +12,7 @@ import ServiceCategoryIcon from "@/components/booking/service-category-icon";
 import PaymentProofUpload from "@/components/customer/payment-proof-upload";
 import TicketVouchers from "@/components/customer/ticket-vouchers";
 
+import { itemRefundLabels } from "@/lib/unified-refunds";
 import { unifiedApprovalLabels, unifiedFulfillmentLabels, unifiedReservationLabels } from "@/lib/unified-checkout";
 
 const demo = process.env.NEXT_PUBLIC_SHIAP_DEMO_MODE === "true";
@@ -117,6 +118,15 @@ export default function BookingDetailClient({ id }: { id: string }) {
                 <p className="font-semibold text-[#0A2E63]">{formatRupiah(line.subtotal)}{line.fee > 0 && " + " + formatRupiah(line.fee) + " biaya layanan"}</p>
                 <p>{unifiedApprovalLabels[line.approval]} · {unifiedReservationLabels[line.reservation]}</p>
                 {line.review_open && <p>Sedang ditinjau SHIAP</p>}
+                {line.cancelled_at && <p className="font-semibold text-red-700">Layanan dibatalkan</p>}
+                {line.refund && line.refund.requests.length > 0 && <div className="mt-1 rounded-lg bg-slate-50 p-2">
+                  <p>Alokasi maksimal layanan {formatRupiah(line.refund.eligible)} · Refund dibayar {formatRupiah(line.refund.paid)}</p>
+                  <ul className="mt-1 space-y-1">{line.refund.requests.map((refund) => <li key={refund.id}>
+                    <strong>{itemRefundLabels[refund.status]}</strong> · Diajukan {formatRupiah(refund.requested)}
+                    {refund.approved !== null && " · Disetujui " + formatRupiah(refund.approved)}
+                    {refund.paid > 0 && " · Dibayar " + formatRupiah(refund.paid)}
+                  </li>)}</ul>
+                </div>}
                 {line.fulfillment !== "PENDING" && <p>{unifiedFulfillmentLabels[line.fulfillment]}</p>}
               </div>}
             </div>

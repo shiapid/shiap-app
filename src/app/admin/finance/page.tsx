@@ -2,6 +2,7 @@ import { PlacesPlatformRevenue } from "@/components/admin/places-platform-revenu
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, BadgeDollarSign, Banknote, FileDown, Landmark, ReceiptText, Wallet } from "lucide-react";
+import { itemRefundLabels, type RefundReport } from "@/lib/unified-refunds";
 import { unifiedCheckoutEnabled } from "@/lib/unified-checkout";
 import { requireAdmin } from "@/lib/admin/guard";
 import { createClient } from "@/lib/supabase/server";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 type ItemReview = { booking_id: string; order_number: string; service: string; service_name: string; reason: string; opened_at: string };
 
 type FinanceRow = {
-  id: string; order_number: string; order_status: string; payment_status: string; created_at: string; recognized_at: string;
+  is_unified?: boolean; id: string; order_number: string; order_status: string; payment_status: string; created_at: string; recognized_at: string;
   payable_amount: string | number; gross_sales: string | number; discount_amount: string | number; net_sales: string | number;
   recognized_revenue: string | number; cash_received: string | number; refunds: string | number;
   service_fee_amount: string | number; service_fee_cash_received: string | number; service_fee_refunded: string | number; service_fee_recognized_revenue: string | number;
@@ -72,7 +73,7 @@ function card(title: string, value: string, icon: React.ReactNode, caption: stri
   return <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold text-slate-500">{title}</p><p className="mt-2 text-xl font-extrabold tracking-tight text-[#0A2E63] sm:text-2xl">{value}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">{caption}</p></div><span className={`grid size-10 place-items-center rounded-xl ${color}`}>{icon}</span></div></article>;
 }
 function panel(title: string, description: string, children: React.ReactNode) {
-  return <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="mb-4"><h2 className="text-base font-extrabold text-[#0A2E63]">{title}</h2><p className="mt-1 text-xs text-slate-500">{description}</p></div>{children}</section>;
+  return <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="mb-4"><h2 className="text-base font-extrabold text-[#0A2E63]">{title}</h2><p className="mt-1 text-xs text-slate-500">{description}</p></div>{children}</section>;
 }
 function formField(label: string, name: string, type = "text", required = false) {
   return <label className="grid gap-1 text-[10px] font-semibold text-slate-600">{label}<input name={name} type={type} min={type === "number" ? "0.01" : undefined} step={type === "number" ? "0.01" : undefined} required={required} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-[#1974FF] focus:ring-2 focus:ring-blue-100" /></label>;
@@ -101,7 +102,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   if (to) bookingsQuery = bookingsQuery.lt("created_at", `${nextDate(to)}T00:00:00+08:00`);
   if (status) bookingsQuery = bookingsQuery.eq("order_status", status);
   if (payment) bookingsQuery = bookingsQuery.eq("payment_status", payment);
-  const [bookingsResult, serviceResult, templateResult, categoryResult, expenseResult, ledgerResult, bankCases, serviceReviews] = await Promise.all([
+  const [bookingsResult, serviceResult, templateResult, categoryResult, expenseResult, ledgerResult, bankCases, serviceReviews, refundQueue] = await Promise.all([
     bookingsQuery,
     supabase.from("finance_service_profit_v").select("service_type,recognized_revenue,estimated_direct_cost,actual_direct_cost,contribution_profit,booking_count").order("service_type"),
     supabase.from("finance_cost_templates").select("id,name,service_type,product_id,cost_basis,amount,is_active,notes").order("created_at", { ascending: false }),
@@ -110,8 +111,10 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
     supabase.from("finance_transaction_entries").select("booking_id,entry_type,amount,status,created_at,note").eq("status", "posted").order("created_at", { ascending: false }).limit(2000),
     supabase.rpc("finance_bank_reconciliation", { p_limit: 100 }),
     unifiedCheckoutEnabled ? supabase.rpc("admin_list_unified_service_reviews") : Promise.resolve({ data: null, error: null }),
+    unifiedCheckoutEnabled ? supabase.rpc("admin_unified_refund_report") : Promise.resolve({ data: null, error: null }),
   ]);
   const reconciliation = (bankCases.data ?? []) as BankCase[];
+  const itemRefundReport = refundQueue.data as RefundReport | null;
   const queryError = bookingsResult.error ?? serviceResult.error ?? templateResult.error ?? categoryResult.error ?? expenseResult.error ?? ledgerResult.error;
   const bookingRows = (bookingsResult.data ?? []) as FinanceRow[];
   const recognizedQuery = supabase.from("finance_booking_profit_v").select("*").gt("recognized_revenue", 0).order("recognized_at", { ascending: false }).limit(1000);
@@ -188,7 +191,7 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
     {success && noticeMessages[success] ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">{noticeMessages[success]}</p> : null}
     {error && noticeMessages[error] ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">{noticeMessages[error]}</p> : null}
 
-    <form method="get" className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto_auto] lg:items-end">
+    <form method="get" className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto_auto] xl:items-end">
       {filterDate("Dari", "from", from)}
       {filterDate("Sampai", "to", to)}
       <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Layanan<select name="service" defaultValue={validService} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs"><option value="">Semua layanan</option>{serviceOptions.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
@@ -242,13 +245,26 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
             <Link className="font-bold text-[#1265D8]" href={`/admin/bookings/${review.booking_id}`}>{review.order_number} · {review.service_name}</Link>
             <p className="mt-1 text-slate-600">{dateLabel(review.opened_at)} · {review.reason}</p>
           </li>)}</ul> : <p className="text-xs text-slate-600">Belum ada tinjauan terbuka.</p>)}
+    {unifiedCheckoutEnabled && panel("Refund per layanan", "Liabilitas persetujuan dan transfer yang sudah tercatat ditampilkan terpisah.",
+      refundQueue.error ? <p role="alert" className="text-sm text-red-700">Antrean refund belum dapat dimuat.</p>
+        : itemRefundReport?.requests.length ? <ul className="divide-y divide-slate-100">
+          {itemRefundReport.requests.map((request) => {
+            const item = itemRefundReport.items.find((line) => line.item_id === request.item_id);
+            if (!item) return null;
+            return <li key={request.id} className="space-y-1 py-3 text-xs">
+              <Link href={`/admin/bookings/${item.booking_id}`} className="min-h-11 inline-flex items-center break-words font-bold text-[#1265D8]">{item.order_number} · {item.service_name}</Link>
+              <p>{itemRefundLabels[request.status]}{request.reconcile_required && " · Perlu rekonsiliasi"}</p>
+              <p>Transfer awal {money(item.receipt_total)} · Alokasi item {money(item.original_amount)} · Liabilitas {money(item.liability)} · Dibayar {money(item.executed)} · Sisa {money(item.remaining_value)}</p>
+            </li>;
+          })}</ul> : <p className="text-xs text-slate-600">Belum ada refund layanan.</p>)}
     {panel("Profit per booking", "Perhitungan direct cost menggunakan snapshot. Rekalkulasi hanya untuk perubahan booking yang disengaja dan selalu diaudit.", <div className="overflow-x-auto"><table className="w-full min-w-[930px] text-left text-[10px]"><thead className="bg-[#F5F8FD] text-slate-500"><tr>{["Booking", "Status", "Penjualan", "Pendapatan terealisasi", "Estimasi biaya", "Biaya aktual", "Profit kontribusi", "Piutang", "Aksi"].map((x)=><th key={x} className="px-3 py-2.5 font-bold">{x}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filteredBookings.slice(0,200).map((row)=><tr key={row.id} className="align-top"><td className="px-3 py-3"><Link href={`/admin/bookings/${row.id}`} className="font-extrabold text-[#1974FF] hover:underline">{row.order_number}</Link><p className="mt-1 text-slate-400">{dateLabel(row.created_at)}</p></td><td className="px-3 py-3"><span className="block font-semibold text-slate-700">{statusLabels[row.order_status]??row.order_status}</span><span className="mt-1 block text-slate-400">{paymentLabels[row.payment_status]??row.payment_status}</span></td><td className="px-3 py-3 font-semibold">{money(row.net_sales)}</td><td className="px-3 py-3 font-semibold text-emerald-700">{money(row.recognized_revenue)}</td><td className="px-3 py-3">{money(row.estimated_direct_cost)}</td><td className="px-3 py-3">{money(row.actual_direct_cost)}</td><td className={`px-3 py-3 font-extrabold ${cents(row.contribution_profit)<BigInt(0)?"text-red-600":"text-[#0A2E63]"}`}>{money(row.contribution_profit)}<span className="mt-1 block text-[9px] font-medium text-slate-400">{percent(row.contribution_profit,row.net_sales)}</span></td><td className="px-3 py-3 font-semibold text-orange-700">{money(row.receivable)}</td><td className="min-w-[210px] space-y-2 px-3 py-3">
         {cents(row.receivable)>BigInt(0) && cents(row.cash_received)===BigInt(0) && !["cancelled","rejected","expired"].includes(row.order_status) ? <Link href={`/admin/bookings/${row.id}`} className="inline-flex rounded bg-[#1974FF] px-2 py-2 font-bold text-white">Verifikasi mutasi bank</Link> : null}
-        {cents(row.cash_received)>cents(row.refunds) ? <form action={recordTransaction} className="flex items-center gap-1"><input type="hidden" name="bookingId" value={row.id}/><input type="hidden" name="entryType" value="refund"/><input type="hidden" name="idempotencyKey" value={randomUUID()}/><input name="amount" inputMode="decimal" placeholder="Nominal refund" required className="h-8 w-24 rounded border border-slate-200 px-2 text-[10px]"/><button className="h-8 rounded border border-orange-200 bg-orange-50 px-2 text-[9px] font-bold text-orange-800">Refund</button></form> : null}
+        {row.is_unified && cents(row.cash_received)>BigInt(0) ? <Link href={`/admin/bookings/${row.id}`} className="inline-flex min-h-8 items-center text-xs font-bold text-[#1265D8]">Refund per layanan</Link> : null}
+        {!row.is_unified && cents(row.cash_received)>cents(row.refunds) ? <form action={recordTransaction} className="flex items-center gap-1"><input type="hidden" name="bookingId" value={row.id}/><input type="hidden" name="entryType" value="refund"/><input type="hidden" name="idempotencyKey" value={randomUUID()}/><input name="amount" inputMode="decimal" placeholder="Nominal refund" required className="h-8 w-24 rounded border border-slate-200 px-2 text-[10px]"/><button className="h-8 rounded border border-orange-200 bg-orange-50 px-2 text-[9px] font-bold text-orange-800">Refund</button></form> : null}
         {cents(row.estimated_direct_cost)>BigInt(0) ? <details><summary className="cursor-pointer text-[9px] font-bold text-slate-500">Rekalkulasi estimasi biaya</summary><form action={recalculateBookingCosts} className="mt-2 flex gap-1"><input type="hidden" name="bookingId" value={row.id}/><input name="reason" minLength={4} required placeholder="Alasan perubahan" className="h-8 min-w-0 flex-1 rounded border border-slate-200 px-2 text-[9px]"/><button className="h-8 rounded border border-slate-200 px-2 text-[9px] font-bold">Hitung</button></form></details> : null}
       </td></tr>)}{filteredBookings.length===0?<tr><td colSpan={9} className="p-8 text-center text-xs text-slate-400">Belum ada booking yang sesuai filter.</td></tr>:null}</tbody></table></div>)}
 
-    <section className="grid gap-4 xl:grid-cols-2">
+    <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       {panel("Cost templates", "Template biaya internal untuk transaksi berikutnya; perubahan tidak mengubah snapshot booking lama.", <div className="space-y-4">
         <form action={createCostTemplate} className="grid gap-2 rounded-xl bg-[#F6F8FC] p-3 sm:grid-cols-2 lg:grid-cols-3">
           {formField("Nama biaya", "name", "text", true)}
@@ -263,11 +279,11 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
       {panel("Expense management", "Masukkan pengeluaran aktual, vendor, alokasi booking/layanan, dan unggah kuitansi privat.", <div className="space-y-4">
         <form action={createExpense} encType="multipart/form-data" className="grid gap-2 rounded-xl bg-[#F6F8FC] p-3 sm:grid-cols-2">
           {formField("Deskripsi pengeluaran", "description", "text", true)}{formField("Nominal (IDR)", "amount", "number", true)}
-          <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Kategori<select name="categoryId" required className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs">{categories.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Kategori<select name="categoryId" required className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs">{categories.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Layanan<select name="serviceType" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs"><option value="">Operasional umum</option>{serviceOptions.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
           {formField("Nama supplier", "supplier")}{formField("Tanggal", "expenseDate", "date", true)}
           {formField("ID booking opsional", "bookingId")}{formField("ID booking item opsional", "bookingItemId")}{formField("Referensi", "reference")}
-          <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Kuitansi (JPG/PNG/WebP/PDF, maks 8 MB)<input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" className="h-10 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[10px]"/></label>
+          <label className="grid gap-1 text-[10px] font-semibold text-slate-600">Kuitansi (JPG/PNG/WebP/PDF, maks 8 MB)<input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" className="h-10 min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[10px]"/></label>
           <button className="h-10 self-end rounded-lg bg-[#0A2E63] px-4 text-xs font-bold text-white">Simpan untuk review</button>
         </form>
         <div className="max-h-[330px] space-y-2 overflow-y-auto">{expenses.slice(0,100).map((expense)=><article key={expense.id} className="rounded-xl border border-slate-100 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[11px] font-bold text-[#0A2E63]">{expense.description}</p><p className="mt-1 text-[9px] text-slate-500">{expense.supplier_name??"Supplier tidak diisi"} · {dateLabel(expense.expense_date)} · {expense.booking_id?"Dialokasikan ke booking":"Biaya operasional"}</p></div><div className="text-right"><p className="text-xs font-extrabold text-[#0A2E63]">{money(expense.amount)}</p><p className="text-[9px] text-slate-500">{expenseLabels[expense.status]??expense.status}</p></div></div>

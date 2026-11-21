@@ -1,3 +1,4 @@
+import type { ItemRefundSummary } from "./unified-refunds";
 import type { BookingItem } from "./booking-engine";
 
 export const unifiedCheckoutEnabled = process.env.NEXT_PUBLIC_SHIAP_UNIFIED_CHECKOUT === "true";
@@ -31,6 +32,8 @@ export type UnifiedItemState = {
   fee: number;
   approval: string;
   review_open: boolean;
+  cancelled_at?: string | null;
+  refund?: ItemRefundSummary | null;
   fulfillment: string;
   reservation: "held" | "reserved" | "released" | "expired";
 };
