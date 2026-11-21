@@ -1,5 +1,6 @@
 -- Synthetic local-only financial regression; all changes rolled back.
 begin;
+\ir payment_integrity_test_helpers.sql
 insert into auth.users(id,email,email_confirmed_at) values('51515151-5151-4151-8151-515151515151','billing-admin@example.invalid',now()),('52525252-5252-4252-8252-525252525252','billing-owner@example.invalid',now()),('53535353-5353-4353-8353-535353535353','billing-other@example.invalid',now());
 insert into public.admin_users(user_id) values('51515151-5151-4151-8151-515151515151');
 create temporary table billing_fixture(property_id uuid,invoice_id uuid,invoice2 uuid,plan_id uuid,trial_id uuid,subscription_id uuid,request_id uuid default gen_random_uuid(),verify_id uuid default gen_random_uuid(),refund_id uuid default gen_random_uuid(),booking_count bigint,finance_count bigint);grant all on billing_fixture to authenticated;
@@ -44,9 +45,9 @@ do $$declare f billing_fixture%rowtype;begin select * into f from billing_fixtur
  begin perform public.admin_review_places_invoice(f.invoice_id,'54545454-5454-4454-8454-545454545454',true,99000,'SYNTHETIC-REF-A','Bank funds checked synthetic',null,f.verify_id);raise exception 'NULL confirmation accepted';exception when sqlstate '22023' then null;end;
  begin perform public.admin_review_places_invoice(f.invoice_id,'54545454-5454-4454-8454-545454545454',true,98000,'SYNTHETIC-REF-A','Bank funds checked synthetic',true,f.verify_id);raise exception 'underpayment accepted';exception when sqlstate '22023' then null;end;
 end$$;
-update billing_fixture set subscription_id=public.admin_review_places_invoice(invoice_id,'54545454-5454-4454-8454-545454545454',true,99000,'SYNTHETIC-REF-A','Bank funds checked synthetic',true,verify_id);
+update billing_fixture set subscription_id=pg_temp.verify_test_bank('invoice',invoice_id,'54545454-5454-4454-8454-545454545454',99000,'SYNTHETIC-REF-A',verify_id);
 do $$declare f billing_fixture%rowtype;s public.places_subscriptions%rowtype;begin select * into f from billing_fixture;
- if public.admin_review_places_invoice(f.invoice_id,'54545454-5454-4454-8454-545454545454',true,99000,'SYNTHETIC-REF-A','Bank funds checked synthetic',true,f.verify_id)<>f.subscription_id then raise exception 'verification retry duplicated';end if;
+ if pg_temp.verify_test_bank('invoice',f.invoice_id,'54545454-5454-4454-8454-545454545454',99000,'SYNTHETIC-REF-A',f.verify_id)<>f.subscription_id then raise exception 'verification retry duplicated';end if;
  select * into s from public.places_subscriptions where id=f.subscription_id;if s.status<>'SCHEDULED' or s.starts_at<>(select ends_at from public.places_subscriptions where id=f.trial_id) then raise exception 'trial to paid overlap';end if;
  if (select count(*) from public.places_platform_cash_entries where invoice_id=f.invoice_id)<>1 then raise exception 'cash receipt duplicated';end if;
 end$$;
@@ -57,7 +58,7 @@ update billing_fixture set invoice2=public.partner_create_places_invoice(propert
 reset role;
 select public.server_submit_places_billing_proof('55555555-5555-4555-8555-555555555555',invoice2,'52525252-5252-4252-8252-525252525252',invoice2::text||'/52525252-5252-4252-8252-525252525252/55555555-5555-4555-8555-555555555555.webp',repeat('b',64),100) from billing_fixture;
 set local role authenticated;select set_config('request.jwt.claim.sub','51515151-5151-4151-8151-515151515151',true);
-select public.admin_review_places_invoice(invoice2,'55555555-5555-4555-8555-555555555555',true,150000,'SYNTHETIC-REF-B','Renewal funds checked synthetic',true,gen_random_uuid()) from billing_fixture;
+select pg_temp.verify_test_bank('invoice',invoice2,'55555555-5555-4555-8555-555555555555',150000,'SYNTHETIC-REF-B') from billing_fixture;
 select public.admin_refund_places_invoice(invoice_id,10000,'SYNTHETIC-REFUND-A','Actual synthetic partial refund',true,refund_id,false) from billing_fixture;
 select public.admin_refund_places_invoice(invoice_id,10000,'SYNTHETIC-REFUND-A','Actual synthetic partial refund',true,refund_id,false) from billing_fixture;
 do $$declare f billing_fixture%rowtype;begin select * into f from billing_fixture;
@@ -92,4 +93,21 @@ set local role authenticated;select set_config('request.jwt.claim.sub','52525252
 select public.partner_cancel_places_subscription(subscription_id) from billing_fixture;
 reset role;
 do $$begin if (select status from public.places_subscriptions where id=(select subscription_id from billing_fixture))<>'CANCELLED' then raise exception 'cancel failed';end if;if (select status from public.places_billing_invoices where id=(select invoice_id from billing_fixture))<>'SETTLED' then raise exception 'cancel mutated financial status';end if;end$$;
-select 'PLACES_BILLING_SQL_RLS_PASS';rollback;
+select 'PLACES_BILLING_SQL_RLS_PASS';reset role;
+do $$
+declare
+  booking uuid := gen_random_uuid();
+  payer uuid := '52525252-5252-4252-8252-525252525252';
+begin
+  insert into public.booking_orders(id,order_number,user_id,customer_name,customer_whatsapp,total_amount)
+  values(booking,'QA-CROSS-'||booking,payer,'Synthetic','620000000000',99000);
+  perform set_config('request.jwt.claim.sub','51515151-5151-4151-8151-515151515151',true);
+  begin
+    perform pg_temp.verify_test_bank('booking',booking,null,99000,'SYNTHETIC-REF-A');
+    raise exception 'Premium bank transaction could also settle a booking';
+  exception when sqlstate 'PT409' then null; end;
+  if exists(select 1 from public.finance_transaction_entries where booking_id=booking) then
+    raise exception 'Cross-ledger rejection created a receipt';
+  end if;
+end $$;
+rollback;

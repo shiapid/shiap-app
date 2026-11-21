@@ -1,5 +1,6 @@
 -- Synthetic Phase 3 test. All state, including locally verified funds, is rolled back.
 begin;
+\ir payment_integrity_test_helpers.sql
 create temp table f(
  admin uuid default gen_random_uuid(), owner_id uuid default gen_random_uuid(), customer uuid default gen_random_uuid(),
  place uuid default gen_random_uuid(), stay uuid default gen_random_uuid(), room uuid default gen_random_uuid(),
@@ -133,7 +134,7 @@ update public.booking_payment_records set submitted_at=clock_timestamp()-interva
 select public.expire_booking_holds();
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select admin::text from f),true);
-select public.admin_review_booking_payment_full_amount(f.proof_id,'approved',b.total_amount,'LOCAL-BANK-TEST',null)
+select pg_temp.verify_test_bank('booking',b.id,f.proof_id,b.total_amount,'LOCAL-BANK-TEST')
   from f join public.booking_orders b on b.id=f.booking;
 select public.manage_stay_partner_booking_config(stay,'APPROVE_INSTANT','Verified synthetic inventory') from f;
 select set_config('request.jwt.claim.sub',(select customer::text from f),true);
@@ -147,7 +148,7 @@ update public.booking_orders set inventory_hold_expires_at=clock_timestamp()-int
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select admin::text from f),true);
 do $$ begin
-  begin perform public.admin_mark_booking_paid_full_amount(b.id,b.total_amount,'LATE-LOCAL-BANK')
+  begin perform pg_temp.verify_test_bank('booking',b.id,null,b.total_amount,'LATE-LOCAL-BANK')
     from public.booking_orders b where b.id=(select instant from f);
     raise exception 'Expired Partner order accepted late recorded funds';
   exception when check_violation then

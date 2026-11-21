@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Check, ExternalLink, LoaderCircle, ShieldCheck, X, Pencil, Trash2, CircleDollarSign } from "lucide-react";
+import { BankTransferFields, verifyBankTransfer } from "./bank-transfer-fields";
 import { canRemoveBookingFromList } from "@/lib/admin/booking-eligibility";
 
 type Payment = {
@@ -55,7 +56,7 @@ export default function BookingOperations({
   const [notice, setNotice] = useState("");
   const [reason, setReason] = useState("");
   const [receivedAmount, setReceivedAmount] = useState(String(totalAmount));
-  const [bankReference, setBankReference] = useState("");
+  const bankForm = useRef<HTMLFormElement>(null);
   const [note, setNote] = useState("");
   const [showEditor, setShowEditor] = useState(false);
   const [editName, setEditName] = useState(customerName);
@@ -102,20 +103,13 @@ export default function BookingOperations({
       setError("Isi alasan penolakan minimal 3 karakter.");
       return;
     }
-    if (decision === "approved" && (Number(receivedAmount) !== totalAmount || bankReference.trim().length < 3)) {
-      setError("Isi nominal transfer tepat sama dengan total tagihan dan referensi mutasi bank sebelum menyetujui.");
-      return;
-    }
+    if (decision === "approved") return recordBankTransfer(paymentId);
     setBusy(true); setError(""); setNotice("");
     const { error: rpcError } = await supabase.rpc("admin_review_booking_payment_full_amount", {
-      p_payment_record_id: paymentId,
-      p_decision: decision,
-      p_received_amount: decision === "approved" ? Number(receivedAmount) : null,
-      p_bank_reference: decision === "approved" ? bankReference.trim() : null,
-      p_rejection_reason: decision === "rejected" ? reason.trim() : null,
+      p_payment_record_id: paymentId, p_decision: "rejected", p_rejection_reason: reason.trim(),
     });
     if (rpcError) setError(rpcError.message);
-    else { setNotice(decision === "approved" ? "Transfer penuh terverifikasi dan tercatat di Finance." : "Bukti pembayaran ditolak."); setReason(""); setBankReference(""); await refresh(); }
+    else { setNotice("Bukti pembayaran ditolak."); setReason(""); router.refresh(); await refresh(); }
     setBusy(false);
   }
 
@@ -141,19 +135,45 @@ export default function BookingOperations({
     setBusy(false);
   }
 
-  async function markPaymentReceived() {
-    if (Number(receivedAmount) !== totalAmount || bankReference.trim().length < 3) {
-      setError("Isi nominal transfer tepat sama dengan total tagihan dan referensi mutasi bank.");
+  async function recordBankTransfer(proof?: string) {
+    if (Number(receivedAmount) !== totalAmount || !bankForm.current) {
+      setError("Isi nominal transfer tepat sama dengan total tagihan.");
       return;
     }
-    if (!window.confirm(`Pastikan mutasi bank sudah diverifikasi. Catat pelunasan penuh ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 2 }).format(totalAmount)}?`)) return;
     setBusy(true); setError(""); setNotice("");
-    const { error: rpcError } = await supabase.rpc("admin_mark_booking_paid_full_amount", {
-      p_booking_id: bookingId, p_received_amount: Number(receivedAmount), p_bank_reference: bankReference.trim(), p_note: note.trim() || null,
-    });
-    if (rpcError) setError(rpcError.message);
-    else { setNotice("Transfer penuh terverifikasi dan tercatat di Finance."); setNote(""); setBankReference(""); router.refresh(); await refresh(); }
-    setBusy(false);
+    try {
+      const result = await verifyBankTransfer(bankForm.current, {
+        kind: "booking", target: bookingId, proof, amount: Number(receivedAmount), note,
+      });
+      setNotice(result);
+      router.refresh();
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Verifikasi belum tersimpan.");
+    } finally { setBusy(false); }
+  }
+
+  async function reviewBankReversal() {
+    const explanation = note.trim();
+    if (explanation.length < 10) {
+      setError("Isi catatan pembalikan bank dan alasan koreksi, minimal 10 karakter.");
+      return;
+    }
+    if (!window.confirm("Periksa pembalikan di bank terlebih dahulu. Booking yang masih menunggu konfirmasi dapat dibatalkan dan penerimaannya dikoreksi. Lanjutkan?")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const { error: reviewError } = await supabase.rpc("finance_reconcile_bank_payment", {
+        p_kind: "booking", p_target: bookingId, p_action: "review_reversal",
+        p_reason: explanation, p_request: crypto.randomUUID(),
+      });
+      if (reviewError) throw reviewError;
+      setNotice("Keputusan tersimpan. Lihat hasilnya pada Rekonsiliasi mutasi bank di Keuangan.");
+      setNote("");
+      router.refresh();
+      await refresh();
+    } catch {
+      setError("Keputusan koreksi belum tersimpan.");
+    } finally { setBusy(false); }
   }
 
   async function deleteBooking() {
@@ -185,18 +205,17 @@ export default function BookingOperations({
           Catatan perubahan (opsional)
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-[#1974FF]" placeholder="Catatan internal..." />
         </label>
-        {paymentStatus !== "paid" && <div className="mt-3 grid gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3 sm:grid-cols-2">
+        {paymentStatus !== "paid" && <form ref={bankForm} onSubmit={(event) => event.preventDefault()} className="mt-3 grid gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
           <label className="text-xs font-semibold text-slate-700">Nominal transfer terverifikasi
-            <input type="number" min="0.01" step="0.01" value={receivedAmount} onChange={(event) => setReceivedAmount(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" />
+            <input type="number" min="1" step="1" value={receivedAmount} onChange={(event) => setReceivedAmount(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" />
             <span className="mt-1 block text-[10px] font-medium text-slate-500">Harus sama persis dengan tagihan penuh {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 2 }).format(totalAmount)}.</span>
           </label>
-          <label className="text-xs font-semibold text-slate-700">Referensi mutasi rekening
-            <input value={bankReference} onChange={(event) => setBankReference(event.target.value)} maxLength={160} placeholder="Nomor referensi / ID mutasi bank" className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm" />
-          </label>
-        </div>}
+          <BankTransferFields />
+        </form>}
         <div className="mt-3 flex flex-wrap gap-2">
           <button disabled={busy} onClick={() => setShowEditor((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-[#0A2E63]"><Pencil size={14}/> Edit data booking</button>
-          {paymentStatus === "unpaid" && ["pending_confirmation", "confirmed"].includes(orderStatus) && <button disabled={busy} onClick={() => void markPaymentReceived()} className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><CircleDollarSign size={15}/> Verifikasi transfer penuh tanpa bukti</button>}
+          {paymentStatus === "unpaid" && ["pending_confirmation", "confirmed"].includes(orderStatus) && <button disabled={busy} onClick={() => void recordBankTransfer()} className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><CircleDollarSign size={15}/> Verifikasi transfer penuh tanpa bukti</button>}
+          {paymentStatus === "paid" && <button disabled={busy} onClick={() => void reviewBankReversal()} className="inline-flex items-center gap-2 rounded-xl border border-orange-200 px-4 py-2.5 text-xs font-bold text-orange-800">Tinjau pembalikan mutasi</button>}
           {removable && <button disabled={busy} onClick={() => void deleteBooking()} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-700 disabled:opacity-50"><Trash2 size={14}/> Hapus dari Daftar</button>}
           {orderStatus === "pending_confirmation" && <>
             {paymentStatus === "paid" && <button disabled={busy} onClick={() => void changeStatus("confirmed")} className="rounded-xl bg-green-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">Konfirmasi booking lunas</button>}

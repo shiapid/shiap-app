@@ -1,5 +1,6 @@
 -- Local-only booking/inventory/pricing smoke test. Every fixture is rolled back.
 begin;
+\ir payment_integrity_test_helpers.sql
 -- Test-only payment enablement for legacy payment lifecycle checks. The whole
 -- smoke test rolls back, so the Demo payment setting remains disabled locally.
 update public.payment_settings set is_active=true where id=true;
@@ -71,6 +72,16 @@ begin
   values('booking-payment-proofs',proof_path,test_user,test_user::text,jsonb_build_object('mimetype','application/pdf','size',12));
   payment_record:=public.submit_booking_payment_proof(booking,proof_path,'smoke-proof.pdf','application/pdf',12);
   if (select payment_status from public.booking_orders where id=booking)<>'pending' then raise exception 'Proof submission did not set payment status to pending.'; end if;
+  begin
+    perform public.submit_booking_payment_proof(booking,proof_path,'smoke-proof.pdf','application/pdf',12);
+    raise exception 'A duplicate proof was accepted';
+  exception when raise_exception then
+    if sqlerrm not ilike '%menunggu verifikasi%' then raise; end if;
+  end;
+  if (select count(*) from public.booking_payment_records where booking_id=booking and status='pending')<>1 then
+    raise exception 'Proof retry must retain only one pending record';
+  end if;
+
   insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
   values(admin_user,'authenticated','authenticated',admin_user::text||'@local.test','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());
   insert into public.admin_users(user_id) values(admin_user);
@@ -82,13 +93,13 @@ begin
     if sqlerrm not like '%menunggu verifikasi%' then raise; end if;
   end;
   begin
-    perform public.admin_review_booking_payment_full_amount(payment_record,'approved',amount-1,'SMOKE-UNDERPAY',null);
+    perform pg_temp.verify_test_bank('booking',booking,payment_record,amount-1,'SMOKE-UNDERPAY');
     raise exception 'Underpayment was approved.';
   exception when others then
     if sqlerrm not like '%tepat 100%% total booking%' then raise; end if;
   end;
   if (select payment_status from public.booking_orders where id=booking)<>'pending' then raise exception 'Underpayment attempt changed payment state.'; end if;
-  perform public.admin_review_booking_payment_full_amount(payment_record,'approved',amount,'SMOKE-FULL-PAY',null);
+  perform pg_temp.verify_test_bank('booking',booking,payment_record,amount,'SMOKE-FULL-PAY');
   perform public.admin_update_booking_status(booking,'confirmed',null);
   if (select payment_status from public.booking_orders where id=booking)<>'paid'
      or (select order_status from public.booking_orders where id=booking)<>'confirmed' then

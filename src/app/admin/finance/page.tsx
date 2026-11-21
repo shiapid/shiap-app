@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowDownLeft, ArrowUpRight, BadgeDollarSign, Banknote, 
 import { requireAdmin } from "@/lib/admin/guard";
 import { createClient } from "@/lib/supabase/server";
 import { CashflowChart, ServiceProfitChart } from "@/components/admin/finance-charts";
-import { createCostTemplate, createExpense, recalculateBookingCosts, recordTransaction, reviewExpense, toggleCostTemplate, updateCostTemplate } from "./actions";
+import { createCostTemplate, createExpense, recalculateBookingCosts, recordTransaction, reconcileBankPayment, reviewExpense, toggleCostTemplate, updateCostTemplate } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,7 @@ type FinanceRow = {
 type ServiceItem = { booking_id: string; service_type: string; service_category: string };
 type ExpenseRow = { id: string; booking_id: string | null; booking_item_id: string | null; service_type: string | null; category_id: string; supplier_name: string | null; description: string; amount: string | number; expense_date: string; receipt_path: string | null; external_reference: string | null; status: string; status_note: string | null; created_at: string };
 type TemplateRow = { id: string; name: string; service_type: string; product_id: string | null; cost_basis: string; amount: string | number; is_active: boolean; notes: string | null };
+type BankCase = { target_kind: "booking" | "invoice"; target_id: string; status: string; observed_at: string; case_id: string | null };
 type LedgerRow = { booking_id: string; entry_type: string; amount: string | number; status: string; created_at: string; note: string | null };
 
 const serviceOptions = [
@@ -78,6 +79,7 @@ function filterDate(label: string, name: string, value: string) {
 }
 
 const noticeMessages: Record<string, string> = {
+  "bank-reconciliation-error": "Hasil rekonsiliasi belum tersimpan.", "bank-reconciliation-saved": "Keputusan tercatat pada audit Finance.",
   "template-saved": "Template biaya tersimpan.", "template-updated": "Template biaya diperbarui.", "expense-saved": "Pengeluaran tercatat dan menunggu review.",
   "expense-reviewed": "Status pengeluaran diperbarui.", "transaction-saved": "Transaksi dicatat dengan kunci idempotensi.", recalculated: "Estimasi biaya dihitung ulang dan perubahan tercatat di audit.",
   "template-invalid": "Data template tidak valid.", "template-save": "Template biaya gagal disimpan.", "expense-invalid": "Data pengeluaran tidak valid.", "receipt-invalid": "Bukti harus JPG, PNG, WebP, atau PDF maksimal 8 MB.",
@@ -96,14 +98,16 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   if (to) bookingsQuery = bookingsQuery.lt("created_at", `${nextDate(to)}T00:00:00+08:00`);
   if (status) bookingsQuery = bookingsQuery.eq("order_status", status);
   if (payment) bookingsQuery = bookingsQuery.eq("payment_status", payment);
-  const [bookingsResult, serviceResult, templateResult, categoryResult, expenseResult, ledgerResult] = await Promise.all([
+  const [bookingsResult, serviceResult, templateResult, categoryResult, expenseResult, ledgerResult, bankCases] = await Promise.all([
     bookingsQuery,
     supabase.from("finance_service_profit_v").select("service_type,recognized_revenue,estimated_direct_cost,actual_direct_cost,contribution_profit,booking_count").order("service_type"),
     supabase.from("finance_cost_templates").select("id,name,service_type,product_id,cost_basis,amount,is_active,notes").order("created_at", { ascending: false }),
     supabase.from("finance_expense_categories").select("id,name").eq("is_active", true).order("name"),
     supabase.from("finance_expenses").select("id,booking_id,booking_item_id,service_type,category_id,supplier_name,description,amount,expense_date,receipt_path,external_reference,status,status_note,created_at").order("expense_date", { ascending: false }).limit(500),
     supabase.from("finance_transaction_entries").select("booking_id,entry_type,amount,status,created_at,note").eq("status", "posted").order("created_at", { ascending: false }).limit(2000),
+    supabase.rpc("finance_bank_reconciliation", { p_limit: 100 }),
   ]);
+  const reconciliation = (bankCases.data ?? []) as BankCase[];
   const queryError = bookingsResult.error ?? serviceResult.error ?? templateResult.error ?? categoryResult.error ?? expenseResult.error ?? ledgerResult.error;
   const bookingRows = (bookingsResult.data ?? []) as FinanceRow[];
   const recognizedQuery = supabase.from("finance_booking_profit_v").select("*").gt("recognized_revenue", 0).order("recognized_at", { ascending: false }).limit(1000);
@@ -206,8 +210,28 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
       {panel("Cashflow overview", "Kas masuk dikurangi refund, biaya pembayaran, dan pengeluaran aktual yang disetujui.", <CashflowChart data={cashflowData}/ >)}
     </section>
 
+    {panel("Rekonsiliasi mutasi bank", "100 temuan terbaru. Dana historis tetap tercatat sebagaimana asalnya sampai bukti bank tersedia.",
+      bankCases.error ? <p role="alert" className="text-xs text-red-700">Daftar rekonsiliasi belum bisa dimuat.</p> :
+      reconciliation.length ? <ul className="divide-y divide-slate-100">{reconciliation.map((row) => (
+        <li key={row.case_id ?? row.target_id} className="py-3 text-xs">
+          <p className="break-all font-semibold text-[#0A2E63]">{row.target_kind === "booking"
+            ? <Link href={`/admin/bookings/${row.target_id}`}>Booking {row.target_id}</Link>
+            : "Invoice Places " + row.target_id}</p>
+          <p className="mt-1 text-slate-600">{dateLabel(row.observed_at)} · {{
+            HISTORICAL_UNMATCHED: "Histori belum dipetakan", NEEDS_RECONCILIATION: "Perlu penelusuran mutasi",
+            REVERSAL_REVIEW_REQUIRED: "Koreksi memerlukan tinjauan", RECONCILED: "Hasil pemeriksaan tercatat",
+          }[row.status] ?? row.status}</p>
+          {row.status !== "RECONCILED" && <form action={reconcileBankPayment} className="mt-2 flex flex-wrap gap-2">
+            <input type="hidden" name="kind" value={row.target_kind} />
+            <input type="hidden" name="target" value={row.target_id} />
+            <input type="hidden" name="decision" value="record_review" />
+            <input type="hidden" name="request" value={randomUUID()} />
+            {formField("Hasil penelusuran (minimal 10 karakter)", "reason", "text", true)}
+            <button className="self-end rounded-lg bg-[#1265D8] px-3 py-2 font-bold text-white">Catat hasil</button>
+          </form>}
+        </li>))}</ul> : <p className="text-xs text-slate-600">Belum ada kasus rekonsiliasi.</p>)}
     {panel("Profit per booking", "Perhitungan direct cost menggunakan snapshot. Rekalkulasi hanya untuk perubahan booking yang disengaja dan selalu diaudit.", <div className="overflow-x-auto"><table className="w-full min-w-[930px] text-left text-[10px]"><thead className="bg-[#F5F8FD] text-slate-500"><tr>{["Booking", "Status", "Penjualan", "Pendapatan terealisasi", "Estimasi biaya", "Biaya aktual", "Profit kontribusi", "Piutang", "Aksi"].map((x)=><th key={x} className="px-3 py-2.5 font-bold">{x}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filteredBookings.slice(0,200).map((row)=><tr key={row.id} className="align-top"><td className="px-3 py-3"><Link href={`/admin/bookings/${row.id}`} className="font-extrabold text-[#1974FF] hover:underline">{row.order_number}</Link><p className="mt-1 text-slate-400">{dateLabel(row.created_at)}</p></td><td className="px-3 py-3"><span className="block font-semibold text-slate-700">{statusLabels[row.order_status]??row.order_status}</span><span className="mt-1 block text-slate-400">{paymentLabels[row.payment_status]??row.payment_status}</span></td><td className="px-3 py-3 font-semibold">{money(row.net_sales)}</td><td className="px-3 py-3 font-semibold text-emerald-700">{money(row.recognized_revenue)}</td><td className="px-3 py-3">{money(row.estimated_direct_cost)}</td><td className="px-3 py-3">{money(row.actual_direct_cost)}</td><td className={`px-3 py-3 font-extrabold ${cents(row.contribution_profit)<BigInt(0)?"text-red-600":"text-[#0A2E63]"}`}>{money(row.contribution_profit)}<span className="mt-1 block text-[9px] font-medium text-slate-400">{percent(row.contribution_profit,row.net_sales)}</span></td><td className="px-3 py-3 font-semibold text-orange-700">{money(row.receivable)}</td><td className="min-w-[210px] space-y-2 px-3 py-3">
-        {cents(row.receivable)>BigInt(0) && cents(row.cash_received)===BigInt(0) && !["cancelled","rejected","expired"].includes(row.order_status) ? <form action={recordTransaction} className="grid gap-1"><input type="hidden" name="bookingId" value={row.id}/><input type="hidden" name="entryType" value="payment"/><input type="hidden" name="idempotencyKey" value={randomUUID()}/><input name="amount" type="hidden" value={String(row.receivable)}/><span className="text-[9px] font-semibold text-slate-500">Pelunasan {money(row.receivable)}</span><input name="reference" minLength={3} maxLength={160} required placeholder="Referensi mutasi bank" className="h-8 w-full rounded border border-slate-200 px-2 text-[10px]"/><button className="h-8 rounded bg-[#1974FF] px-2 text-[9px] font-bold text-white">Catat pelunasan 100%</button></form> : null}
+        {cents(row.receivable)>BigInt(0) && cents(row.cash_received)===BigInt(0) && !["cancelled","rejected","expired"].includes(row.order_status) ? <Link href={`/admin/bookings/${row.id}`} className="inline-flex rounded bg-[#1974FF] px-2 py-2 font-bold text-white">Verifikasi mutasi bank</Link> : null}
         {cents(row.cash_received)>cents(row.refunds) ? <form action={recordTransaction} className="flex items-center gap-1"><input type="hidden" name="bookingId" value={row.id}/><input type="hidden" name="entryType" value="refund"/><input type="hidden" name="idempotencyKey" value={randomUUID()}/><input name="amount" inputMode="decimal" placeholder="Nominal refund" required className="h-8 w-24 rounded border border-slate-200 px-2 text-[10px]"/><button className="h-8 rounded border border-orange-200 bg-orange-50 px-2 text-[9px] font-bold text-orange-800">Refund</button></form> : null}
         {cents(row.estimated_direct_cost)>BigInt(0) ? <details><summary className="cursor-pointer text-[9px] font-bold text-slate-500">Rekalkulasi estimasi biaya</summary><form action={recalculateBookingCosts} className="mt-2 flex gap-1"><input type="hidden" name="bookingId" value={row.id}/><input name="reason" minLength={4} required placeholder="Alasan perubahan" className="h-8 min-w-0 flex-1 rounded border border-slate-200 px-2 text-[9px]"/><button className="h-8 rounded border border-slate-200 px-2 text-[9px] font-bold">Hitung</button></form></details> : null}
       </td></tr>)}{filteredBookings.length===0?<tr><td colSpan={9} className="p-8 text-center text-xs text-slate-400">Belum ada booking yang sesuai filter.</td></tr>:null}</tbody></table></div>)}

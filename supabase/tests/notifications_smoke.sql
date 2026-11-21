@@ -1,5 +1,6 @@
 -- Local rollback-only. All addresses, bank references and messages are fixtures.
 begin;
+\ir payment_integrity_test_helpers.sql
 do $$ declare customer uuid:=gen_random_uuid(); admin_id uuid:=gen_random_uuid(); service uuid:=gen_random_uuid();
 begin
   if (select email_enabled from public.notification_settings where id=true) then raise exception 'External email must default disabled'; end if;
@@ -50,7 +51,7 @@ reset role;
 do $$ declare booking uuid:=current_setting('shiap.notify_booking')::uuid; proof uuid:=current_setting('shiap.notify_proof')::uuid;
 begin
   perform set_config('request.jwt.claim.sub',current_setting('shiap.notify_admin'),true);
-  perform public.admin_review_booking_payment_full_amount(proof,'approved',100000,'LOCAL-NOTIFY-BANK',null);
+  perform pg_temp.verify_test_bank('booking',(select booking_id from public.booking_payment_records where id=proof),proof,100000,'LOCAL-NOTIFY-BANK');
   if (select count(*) from public.notification_events where booking_id=booking and event_type='payment_verified')<>1 then raise exception 'Verified full payment event missing'; end if;
   if (select count(*) from public.finance_transaction_entries where booking_id=booking and entry_type='payment')<>1 then raise exception 'Notifications changed finance payment count'; end if;
 end $$;

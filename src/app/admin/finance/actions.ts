@@ -147,7 +147,7 @@ export async function recordTransaction(form: FormData) {
   const amount = field(form, "amount");
   const key = field(form, "idempotencyKey");
   const reference = field(form, "reference");
-  if (!/^[0-9a-f-]{36}$/i.test(bookingId) || !["payment", "refund", "processing_fee"].includes(entryType) || !validAmount(amount) || !/^[0-9a-f-]{36}$/i.test(key) || (entryType === "payment" && reference.length < 3)) notice("error", "transaction-invalid");
+  if (!/^[0-9a-f-]{36}$/i.test(bookingId) || !["refund", "processing_fee"].includes(entryType) || !validAmount(amount) || !/^[0-9a-f-]{36}$/i.test(key)) notice("error", "transaction-invalid");
   const supabase = await createClient();
   const { error } = await supabase.rpc("finance_record_transaction", {
     p_booking_id: bookingId, p_entry_type: entryType, p_amount: amount,
@@ -169,4 +169,16 @@ export async function recalculateBookingCosts(form: FormData) {
   if (error) notice("error", "recalculate-failed");
   refreshFinance();
   notice("success", "recalculated");
+}
+
+export async function reconcileBankPayment(form: FormData) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("finance_reconcile_bank_payment", {
+    p_kind: field(form, "kind"), p_target: field(form, "target"),
+    p_action: field(form, "decision"), p_reason: field(form, "reason"), p_request: field(form, "request"),
+  });
+  if (error) notice("error", "bank-reconciliation-error");
+  refreshFinance();
+  notice("success", "bank-reconciliation-saved");
 }

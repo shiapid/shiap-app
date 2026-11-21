@@ -1,5 +1,6 @@
 -- Local only. Every tariff, booking, bank fixture and ledger entry rolls back.
 begin;
+\ir payment_integrity_test_helpers.sql
 do $$ declare admin_id uuid:=gen_random_uuid(); customer_id uuid:=gen_random_uuid(); rental uuid:=gen_random_uuid(); activity uuid:=gen_random_uuid(); guest uuid;
 begin
   if exists(select 1 from public.service_fee_settings where enabled or percentage_bps<>200 or max_percentage_bps<>1000) then raise exception 'Initial fees must be disabled with recommended 2%% and cap 10%%'; end if;
@@ -58,8 +59,8 @@ begin
   if (select service_fee_total from public.booking_orders where id=booking)<>12400 then raise exception 'Tariff edit repriced old booking'; end if;
   -- Isolated ledger fixtures exercise the existing verified full-transfer path.
   begin perform public.finance_record_transaction(booking,'payment',220002,gen_random_uuid()::text,'local fixture','LOCAL-FEE-BANK'); raise exception 'Package-only payment accepted'; exception when raise_exception then if sqlerrm='Package-only payment accepted' then raise; end if; end;
-  payment:=public.finance_record_transaction(booking,'payment',232402,'fee-payment-'||booking::text,'Local rollback fixture','LOCAL-FEE-BANK');
-  duplicate:=public.finance_record_transaction(booking,'payment',232402,'fee-payment-'||booking::text,'Local rollback fixture','LOCAL-FEE-BANK');
+  payment:=pg_temp.verify_test_bank('booking',booking,null,232402,'LOCAL-FEE-BANK');
+  duplicate:=pg_temp.verify_test_bank('booking',booking,null,232402,'LOCAL-FEE-BANK');
   if payment<>duplicate then raise exception 'Payment retry duplicated fee'; end if;
   if (select count(*) from public.finance_transaction_entries where booking_id=booking and entry_type='payment')<>1 then raise exception 'Fee created separate cash transaction'; end if;
   update public.booking_orders set order_status='completed' where id=booking;

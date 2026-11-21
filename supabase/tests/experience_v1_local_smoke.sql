@@ -1,6 +1,7 @@
 -- Local-only functional smoke test. Run with psql against 127.0.0.1:54322.
 -- All auth, booking, payment, session, and resource fixtures roll back.
 begin;
+\ir payment_integrity_test_helpers.sql
 do $$
 declare
   test_user uuid:=gen_random_uuid(); test_email text; v_booking_id uuid; order_code text;
@@ -76,7 +77,21 @@ begin
     if sqlerrm like 'SMOKE FAILED:%' or position('Pembayaran belum dibuka' in sqlerrm)=0 then raise; end if;
   end;
 
+  update public.payment_settings set is_active=true,account_number='1234567890' where id;
+  begin
+    perform pg_temp.verify_test_bank('booking',v_booking_id,null,total,'QA-EXPERIENCE-A');
+    raise exception 'Experience settled before approval';
+  exception when raise_exception then
+    if sqlerrm not ilike '%harus disetujui%' then raise; end if;
+  end;
   perform public.admin_review_experience_request(record_id,'approve','DEMO smoke approval');
+  perform pg_temp.verify_test_bank('booking',v_booking_id,null,total,'QA-EXPERIENCE-A');
+  if not exists (select 1 from public.booking_orders where id=v_booking_id and payment_status='paid')
+    or (select count(*) from public.finance_transaction_entries where booking_id=v_booking_id and bank_transfer_id is not null)<>1 then
+    raise exception 'Approved Experience did not settle through canonical Finance gate';
+  end if;
+  update public.payment_settings set is_active=false where id;
+
   select payment_enabled into enabled from public.booking_orders where id=v_booking_id;
   if not enabled or (select request_status from public.shiap_experience_booking_records where id=record_id)<>'approved' then raise exception 'Admin approval did not unlock payment'; end if;
   begin
