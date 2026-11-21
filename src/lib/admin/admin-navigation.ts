@@ -29,6 +29,14 @@ export const adminMenu: readonly { title: string; items: readonly Menu[] }[] = [
     { id: "stay", label: "Stay", query: "view", children: [
       ...staySections.map(section => ({ label: section.label, href: stayHref(section.id), view: section.id })),
       { label: "Kemitraan & Perjanjian", href: "/admin/stay/partners" },
+      { label: "Pemetaan Properti", href: "/admin/stay/reconciliation" },
+      { label: "Direktori & Verifikasi", href: "/admin/places" },
+      { label: "Leads", href: "/admin/places/leads" },
+      { label: "Partner & Kepemilikan", href: "/admin/places/claims" },
+      { label: "Konten Premium", href: "/admin/places/premium", detail: "Pratinjau Properti" },
+      { label: "Langganan & Billing", href: "/admin/places/billing" },
+      { label: "Analitik", href: "/admin/places/analytics" },
+      { label: "Template WhatsApp", href: "/admin/places/settings" },
     ] },
     { id: "activity", label: "Activity / Wahana", href: "/admin/activities" },
     { id: "experience", label: "Experience", query: "tab", children: experienceSections.map(section => ({
@@ -38,17 +46,6 @@ export const adminMenu: readonly { title: string; items: readonly Menu[] }[] = [
     })) },
     { id: "rental", label: "Rental", href: "/admin/rental" },
     { id: "shinema", label: "Shinema", href: "/admin/shinema" },
-  ] },
-  { title: "Places", items: [
-    { id: "places", label: "Places", children: [
-      { label: "Direktori & Verifikasi", href: "/admin/places" },
-      { label: "Leads", href: "/admin/places/leads" },
-      { label: "Partner & Kepemilikan", href: "/admin/places/claims" },
-      { label: "Konten Premium", href: "/admin/places/premium", detail: "Pratinjau Properti" },
-      { label: "Langganan & Billing", href: "/admin/places/billing" },
-      { label: "Analitik", href: "/admin/places/analytics" },
-      { label: "Template WhatsApp", href: "/admin/places/settings" },
-    ] },
   ] },
   { title: "Master Data", items: [
     { id: "destinations", label: "Destinasi", href: "/admin/destinations" },

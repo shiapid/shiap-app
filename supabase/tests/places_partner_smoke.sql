@@ -21,6 +21,12 @@ do $$declare p uuid;begin
  if (select stay_property_id from public.places_properties where id=p) is not null then raise exception 'claim auto linked Stay';end if;
  perform set_config('test.property',p::text,true);
 end $$;
+select public.admin_save_free_places_listing(id,name,destination_id,whatsapp_phone,true)
+  from public.places_properties where id=current_setting('test.property')::uuid;
+reset role;
+insert into public.places_subscriptions(property_id,origin,status,starts_at,ends_at)
+  values(current_setting('test.property')::uuid,'TRIAL','TRIALING',now(),now()+interval '14 days');
+set local role authenticated;
 select set_config('request.jwt.claim.sub','42424242-4242-4242-8242-424242424242',true);
 do $$declare p uuid:=current_setting('test.property')::uuid;v integer;begin
  if not shiap_private.places_member(p,true) then raise exception 'approved owner cannot access';end if;
