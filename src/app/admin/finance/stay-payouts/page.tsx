@@ -103,7 +103,7 @@ export default async function StayPayoutQueue({ searchParams }: { searchParams: 
           <h2 className="break-words font-bold">{payout.property_name} · {payout.order_number}</h2>
           <p className="mt-1 text-sm">{BigInt(payout.amount_idr).toLocaleString("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 })} · {payout.status}</p>
           <p className="mt-1 break-words text-xs">{payout.bank_name} ••••{payout.last4}</p>
-          {signed.get(payout.account_evidence) && <a className="mt-2 inline-flex min-h-11 items-center text-xs font-semibold text-[#1265D8]" href={signed.get(payout.account_evidence)}>Unduh bukti rekening</a>}
+          {signed.get(payout.account_evidence) && <a className="mt-2 inline-flex min-h-11 items-center text-xs font-semibold text-[#1265D8]" href={signed.get(payout.account_evidence) ?? undefined}>Unduh bukti rekening</a>}
           <PayoutForm payout={payout} />
         </article>
       ))}
