@@ -180,6 +180,20 @@ begin
   end if;
 
   perform set_config('request.jwt.claim.sub',admin_id::text,true);
+  begin
+    refund:=public.admin_manage_unified_refund(gen_random_uuid(),'request',item,null,
+      jsonb_build_object('amount',principal,'reason','Synthetic exposure after early withdrawal'));
+    perform public.admin_manage_unified_refund(gen_random_uuid(),'review',item,refund,
+      jsonb_build_object('reason','Synthetic exposure after early withdrawal'));
+    perform public.admin_manage_unified_refund(gen_random_uuid(),'approve',item,refund,
+      jsonb_build_object('amount',principal,'reason','Synthetic exposure after early withdrawal'));
+    wallet:=public.read_stay_partner_wallet(places);
+    if (wallet#>>'{totals,refund_exposure_idr}')::bigint is distinct from 1000::bigint
+      or (wallet#>>'{totals,eligibility_idr}')::bigint is distinct from 0::bigint then
+      raise exception 'Refund after early payout failed to expose deficit and block withdrawals';
+    end if;
+    raise exception 'Undo synthetic exposure branch' using errcode='SW001';
+  exception when sqlstate 'SW001' then null; end;
   select j.id into strict journal_id from shiap_private.stay_finance_journals j
     where j.source_kind='PAYOUT_PAID' and j.source_id=withdrawal;
   payout_event:=gen_random_uuid();
