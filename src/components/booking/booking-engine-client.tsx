@@ -35,7 +35,8 @@ const serviceOptions: { value: BookingServiceType; label: string }[] = [
 const emptyCustomer: BookingCustomer = { name: "", whatsapp: "", email: "", notes: "" };
 type DepartureOption = { id: string; departure_date: string; status: string; max_participants: number | null; booked_seats: number; price_per_person: number | null };
 type TripOption = { id: string; slug: string; title: string; max_pax: number | null; min_pax: number | null; minimum_package_price: number; price_tiers: unknown; trip_modes: string[]; trip_departures: DepartureOption[] };
-type RoomOption = { id: string; name: string; capacity: number; status: string; total_units: number; weekday_price: number; weekend_price: number };
+type RoomOption = { id: string; name: string; capacity: number; status: string; total_units: number; weekday_price: number; weekend_price: number; extra_guest_price: number; partner_included_guests: number | null };
+type StayOptions = { propertyId: string; mode: string; addons: { id: string; name: string; price: number }[] };
 type StayOption = { id: string; slug: string; name: string; stay_room_types: RoomOption[] };
 type ExperienceOption = { id: string; experience_type: "activity" | "documentation"; catalog_category: "activity" | "rental" | "documentation"; rental_category: string | null; title: string; slug: string; location: string; duration: string | null; base_price: number; price_basis: "per_person" | "per_unit"; price_unit_label: string; min_quantity: number; max_quantity: number; bundle_requires: "none" | "trip_or_activity" | "snorkeling"; addons: { id: string; name: string; price: number }[] };
 
@@ -85,6 +86,7 @@ export default function BookingEngineClient() {
   const [checkoutNotice, setCheckoutNotice] = useState("");
   const [tripOptions, setTripOptions] = useState<TripOption[]>([]);
   const [stayOptions, setStayOptions] = useState<StayOption[]>([]);
+  const [stayBooking, setStayBooking] = useState<StayOptions | null>(null);
   const [departureOptions, setDepartureOptions] = useState<DepartureOption[]>([]);
   const [roomOptions, setRoomOptions] = useState<RoomOption[]>([]);
   const [experienceOptions, setExperienceOptions] = useState<ExperienceOption[]>([]);
@@ -98,7 +100,7 @@ export default function BookingEngineClient() {
 
         const [{ data: tripsData }, { data: staysData }, { data: experiencesData }] = await Promise.all([
           supabase.from("trip_packages").select("id,slug,title,min_pax,max_pax,minimum_package_price,price_tiers,trip_modes,trip_departures(id,departure_date,status,max_participants,booked_seats,price_per_person)").eq("status", "published").order("title"),
-          supabase.from("stay_properties").select("id,slug,name,stay_room_types(id,name,capacity,status,total_units,weekday_price,weekend_price)").eq("status", "published").order("name"),
+          supabase.from("stay_properties").select("id,slug,name,stay_room_types(id,name,capacity,status,total_units,weekday_price,weekend_price,extra_guest_price,partner_included_guests)").eq("status", "published").order("name"),
           supabase.from("shiap_experiences").select("id,experience_type,catalog_category,rental_category,title,slug,location,duration,base_price,price_basis,price_unit_label,min_quantity,max_quantity,bundle_requires,addons").is("experience_package_id", null).eq("status", "published").order("title"),
         ]);
         if (!active) return;
@@ -185,6 +187,24 @@ export default function BookingEngineClient() {
     if (loaded) localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(cart));
   }, [cart, loaded]);
 
+  useEffect(() => {
+    if (serviceType !== "stay" || !propertyId) return;
+    let active = true;
+    void Promise.all([
+      supabase.rpc("stay_booking_mode", { p_property: propertyId }),
+      supabase.rpc("stay_partner_addon_options", { p_property: propertyId }),
+    ]).then(([mode, addons]) => {
+      if (!active) return;
+      const options = (addons.data ?? []) as { id: string; name: string; price_idr: number }[];
+      setStayBooking({ propertyId, mode: mode.error || addons.error ? "UNAVAILABLE" : mode.data ?? "UNAVAILABLE",
+        addons: options.map(addon => ({ id: addon.id, name: addon.name, price: Number(addon.price_idr) })) });
+    }).catch(() => {
+      if (active) setStayBooking({ propertyId, mode: "UNAVAILABLE", addons: [] });
+    });
+    return () => { active = false; };
+  }, [propertyId, serviceType, supabase]);
+
+  const stayQuote = stayBooking?.propertyId === propertyId ? stayBooking : null;
   const selectedExperience = experienceOptions.find((item) => item.id === serviceCatalogId);
 
   const totalGuests = useMemo(
@@ -262,6 +282,15 @@ export default function BookingEngineClient() {
       setNotice("Pilih properti, tipe kamar, tanggal check-in dan check-out.");
       return;
     }
+    if (serviceType === "stay" && (!stayQuote || stayQuote.mode === "UNAVAILABLE")) {
+      setNotice(stayQuote ? "Booking online belum tersedia untuk properti ini." : "Tunggu pemeriksaan status properti.");
+      return;
+    }
+    const others = cart.filter(item => item.id !== editingItem?.id);
+    if (others.some(item => item.partnerStay) || (serviceType === "stay" && stayQuote?.mode !== "LEGACY" && others.length)) {
+      setNotice("Pesanan Stay Partner dibuat terpisah. Kirim pesanan yang ada dahulu.");
+      return;
+    }
     if ((serviceType === "rental" || serviceType === "activity" || serviceType === "documentation") && !selectedExperience) {
       setNotice("Pilih layanan yang tersedia dari katalog SHIAP.");
       return;
@@ -318,11 +347,25 @@ export default function BookingEngineClient() {
         }
         const { data, error } = rates;
         const nights = (data ?? []).map((row: StayRateSnapshot["nights"][number]) => ({ ...row, rate: Number(row.rate) }));
-        const subtotal = nights.reduce((sum: number, night: StayRateSnapshot["nights"][number]) => sum + night.rate, 0);
+        const roomSubtotal = nights.reduce((sum: number, night: StayRateSnapshot["nights"][number]) => sum + night.rate, 0);
+        const room = roomOptions.find(option => option.id === roomTypeId);
+        if (room && guests > room.capacity * quantity) {
+          setNotice("Jumlah tamu melebihi kapasitas kamar."); return;
+        }
+        let extras = 0;
+        const included = stayQuote?.mode !== "LEGACY" ? room?.partner_included_guests : null;
+        if (included && room && guests > included * quantity) {
+          if (guests % quantity !== 0) { setNotice("Bagi tamu secara merata atau pesan kamar terpisah."); return; }
+          extras = (guests / quantity - included) * Number(room.extra_guest_price) * nights.length;
+        }
+        const addons = stayQuote?.addons.filter(addon => selectedAddonIds.includes(addon.id)) ?? [];
+        if (addons.length !== selectedAddonIds.length) { setNotice("Pilihan add-on berubah. Pilih kembali add-on Stay."); return; }
+        const addonSubtotal = addons.reduce((sum, addon) => sum + addon.price, 0);
+        const subtotal = roomSubtotal + extras + addonSubtotal;
         if (error || !nights.length || nights.some((night: StayRateSnapshot["nights"][number]) => !Number.isFinite(night.rate) || night.rate <= 0) || subtotal * quantity > 999999999999) {
           setNotice("Tarif Stay belum tersedia untuk tanggal, durasi, atau jumlah yang dipilih."); return;
         }
-        stayRate = { nights, subtotal };
+        stayRate = { nights, subtotal, extras, addonSubtotal };
         unitPrice = subtotal / nights.length;
       } catch {
         setNotice("Tarif Stay gagal dimuat. Silakan coba lagi."); return;
@@ -340,7 +383,8 @@ export default function BookingEngineClient() {
       serviceCatalogId: selectedExperience?.id,
       priceBasis: selectedExperience?.price_basis,
       priceUnitLabel: selectedExperience?.price_unit_label,
-      selectedAddons: selectedExperience?.addons.filter((addon) => selectedAddonIds.includes(addon.id)),
+      selectedAddons: serviceType === "stay" ? stayQuote?.addons.filter(addon => selectedAddonIds.includes(addon.id)) : selectedExperience?.addons.filter((addon) => selectedAddonIds.includes(addon.id)),
+      partnerStay: serviceType === "stay" && stayQuote?.mode !== "LEGACY",
       bundleRequires: selectedExperience?.bundle_requires,
       variant: variant.trim() || undefined,
       dateStart,
@@ -476,7 +520,7 @@ export default function BookingEngineClient() {
               ) : serviceType === "stay" ? (
                 <select value={propertyId || ""} onChange={(event) => {
                   const selected = stayOptions.find((item) => item.id === event.target.value);
-                  setPropertyId(selected?.id || null); setServiceName(selected?.name || "");
+                  setPropertyId(selected?.id || null); setServiceName(selected?.name || ""); setSelectedAddonIds([]);
                   setRoomOptions((selected?.stay_room_types || []).filter((room) => room.status === "active")); setRoomTypeId(null); setVariant("");
                 }} className="h-11 min-w-0 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-[#0A2E63] outline-none sm:text-sm focus:border-[#1265D8]">
                   <option value="">Pilih properti</option>
@@ -543,6 +587,19 @@ export default function BookingEngineClient() {
                 <input type="date" min={dateStart || undefined} value={dateEnd} onChange={(event) => setDateEnd(event.target.value)} className="h-11 min-w-0 w-full rounded-xl border border-slate-200 px-3 text-base text-[#0A2E63] outline-none sm:text-sm focus:border-[#1265D8]"/>
               </label>
             )}
+
+            {serviceType === "stay" && propertyId && <div className="col-span-2 space-y-2">
+              {stayQuote?.mode === "REQUEST_TO_BOOK" && <p className="text-xs text-slate-600">Reservasi perlu persetujuan sebelum transfer dapat dilakukan.</p>}
+              {stayQuote?.mode === "UNAVAILABLE" && <p role="status" className="text-xs text-red-700">Booking online belum tersedia untuk properti ini.</p>}
+              {!!stayQuote?.addons.length && <fieldset className="space-y-1">
+                <legend className="text-xs font-semibold text-slate-700">Add-on per unit per menginap</legend>
+                {stayQuote.addons.map(addon => <label key={addon.id} className="flex min-h-10 items-center gap-2 text-xs">
+                  <input type="checkbox" checked={selectedAddonIds.includes(addon.id)} onChange={event =>
+                    setSelectedAddonIds(current => event.target.checked ? [...current, addon.id] : current.filter(id => id !== addon.id))} />
+                  {addon.name} · {formatRupiah(addon.price)}
+                </label>)}
+              </fieldset>}
+            </div>}
 
             <div>
               <span className="mb-1 block text-xs font-semibold text-slate-600">Jumlah peserta / tamu</span>

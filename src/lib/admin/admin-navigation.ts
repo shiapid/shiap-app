@@ -30,6 +30,7 @@ export const adminMenu: readonly { title: string; items: readonly Menu[] }[] = [
       ...staySections.map(section => ({ label: section.label, href: stayHref(section.id), view: section.id })),
       { label: "Kemitraan & Perjanjian", href: "/admin/stay/partners" },
       { label: "Pemetaan Properti", href: "/admin/stay/reconciliation" },
+      { label: "Operasional Partner", href: "/admin/stay/operations" },
       { label: "Direktori & Verifikasi", href: "/admin/places" },
       { label: "Leads", href: "/admin/places/leads" },
       { label: "Partner & Kepemilikan", href: "/admin/places/claims" },

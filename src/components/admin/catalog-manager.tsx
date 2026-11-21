@@ -286,7 +286,7 @@ export default function CatalogManager({ mode, roomProperty, stayContext }: { mo
       if (!selected) payload.created_by = auth.user.id;
       const query = selected
         ? supabase.from(table).update(payload).eq("id", selected.id)
-        : supabase.from(table).insert(payload);
+        : supabase.from(table).insert(isTrip ? payload : { ...payload, partner_booking_required: true });
       const { error: saveError } = await query;
       if (saveError) throw saveError;
       setNotice(isTrip ? "Paket trip berhasil disimpan." : "Listing properti berhasil disimpan.");

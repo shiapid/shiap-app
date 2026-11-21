@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { stayPartnerItemActions } from "../src/lib/stay-v2/operations.ts";
 import { stayV2CommercialTerms, stayV2OwnerMenu, stayV2PlanFeatures } from "../src/lib/stay-v2/plans.ts";
 
 test("Stay V2 plan inventory preserves inheritance and prospective offer terms", () => {
@@ -25,4 +26,15 @@ test("owner menu keeps invoice history and exposes only implemented entitled fun
   assert(!manager.includes("/partner/billing"));
   const active = stayV2OwnerMenu([{ ...base, commercial_plan: "PARTNER", partner_status: "MARKETING_ACTIVE", premium_content: true }], true);
   assert(!active.some(item => /wallet|payout|checkout|booking/.test(item.href)));
+});
+
+test("Stay Partner operations never present verification or lifecycle bypass actions", () => {
+  const ids = (status, payment_status, operational_hold, admin = false) =>
+    stayPartnerItemActions({ status, payment_status, operational_hold }, admin).map(action => action.id);
+  assert.deepEqual(ids("REQUESTED", "unpaid", false), ["APPROVE", "REJECT"]);
+  assert.deepEqual(ids("AWAITING_PAYMENT", "pending", false), []);
+  assert.deepEqual(ids("AWAITING_PAYMENT", "paid", false), ["CONFIRM"]);
+  assert.deepEqual(ids("CHECKED_OUT", "paid", true), []);
+  assert.deepEqual(ids("CHECKED_OUT", "paid", true, true), ["RELEASE_HOLD"]);
+  assert.deepEqual(ids("expired", "unpaid", false, true), []);
 });
