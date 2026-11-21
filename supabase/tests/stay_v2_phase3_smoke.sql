@@ -129,7 +129,11 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub',(select customer::text from f),true);
 update f set proof_id=public.submit_booking_payment_proof(booking,customer::text||'/'||booking::text||'/synthetic-qa.pdf','synthetic-qa.pdf','application/pdf',12);
 reset role;
+-- Move only the rollback-only QA deadline to exercise the real gate.
+set constraints all immediate;
+alter table public.booking_orders disable trigger aa_unified_order_gate;
 update public.booking_orders set inventory_hold_expires_at=clock_timestamp()-interval '1 minute' where id=(select booking from f);
+alter table public.booking_orders enable trigger aa_unified_order_gate;
 update public.booking_payment_records set submitted_at=clock_timestamp()-interval '2 minutes' where id=(select proof_id from f);
 select public.expire_booking_holds();
 set local role authenticated;
@@ -144,7 +148,11 @@ do $$ begin
     raise exception 'Instant booking did not reserve and open payment'; end if;
 end $$;
 reset role;
+-- Move only the rollback-only QA deadline to exercise the real gate.
+set constraints all immediate;
+alter table public.booking_orders disable trigger aa_unified_order_gate;
 update public.booking_orders set inventory_hold_expires_at=clock_timestamp()-interval '1 minute' where id=(select instant from f);
+alter table public.booking_orders enable trigger aa_unified_order_gate;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select admin::text from f),true);
 do $$ begin
@@ -152,13 +160,41 @@ do $$ begin
     from public.booking_orders b where b.id=(select instant from f);
     raise exception 'Expired Partner order accepted late recorded funds';
   exception when check_violation then
-    if sqlerrm not like '%Hold Stay Partner kedaluwarsa%' then raise; end if;
+    if sqlerrm not like '%Hold Stay Partner kedaluwarsa%' and sqlerrm not like '%Hold pesanan gabungan kedaluwarsa%' then raise; end if;
   end;
 end $$;
 reset role;
 select public.expire_booking_holds();
 do $$ begin
   if not exists(select 1 from public.booking_orders where id=(select instant from f) and order_status='expired') then raise exception 'Hold did not expire'; end if;
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select admin::text from f),true);
+reset role;
+do $$
+declare
+  token_hash text:=encode(extensions.gen_random_bytes(32),'hex');
+  guest uuid;
+  order_key uuid:=gen_random_uuid();
+  order_id uuid;
+  retry uuid;
+  payload jsonb;
+begin
+  insert into public.booking_guest_sessions(secret_hash) values(token_hash) returning id into guest;
+  select jsonb_build_object('p_customer_name','Guest Partner QA','p_customer_whatsapp','620000000000',
+    'p_items',jsonb_build_array(jsonb_build_object('service_type','stay','property_id',f.stay,
+      'room_type_id',f.room,'date_start',current_date+98,'date_end',current_date+99,'guests',2,'quantity',1)))
+    into payload from f;
+  set local role service_role;
+  select x.id into strict order_id from public.checkout_booking(null,token_hash,order_key,payload,'booking') x;
+  select x.id into strict retry from public.checkout_booking(null,token_hash,order_key,payload,'booking') x;
+  reset role;
+  if order_id<>retry or not exists(select 1 from public.booking_orders b
+    join shiap_private.unified_order_items s on s.booking_id=b.id
+    where b.id=order_id and b.guest_session_id=guest and b.user_id is null and b.payment_enabled
+      and s.service='stay' and s.commission_bps=1500) then
+    raise exception 'Single-service Partner checkout lost guest ownership or canonical snapshot';
+  end if;
 end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select admin::text from f),true);
@@ -206,6 +242,32 @@ do $$ begin
     where b.id=(select booking from f) and b.order_status='completed' and i.status='COMPLETED' and b.package_subtotal=475000)
     or (select count(*) from public.finance_transaction_entries where booking_id=(select booking from f) and entry_type='payment')<>1
     then raise exception 'Partner fulfillment failed or legacy Finance recorded duplicate payment'; end if;
+end $$;
+do $$
+declare
+  item uuid;
+  order_id uuid:=(select booking from f);
+  refund uuid;
+begin
+  select s.item_id into strict item from shiap_private.unified_order_items s where s.booking_id=order_id;
+  if (select -sum(l.delta_idr) from shiap_private.stay_finance_lines l
+    where l.item_id=item and l.account='COMMISSION_REVENUE') is distinct from 71250::numeric
+    or (select sum(l.delta_idr) from shiap_private.stay_finance_lines l
+      where l.item_id=item and l.account='COMMISSION_DEFERRED') is distinct from 0::numeric then
+    raise exception 'Validated singleton completion did not recognize the 15 percent commission';
+  end if;
+
+  perform set_config('request.jwt.claim.sub',(select admin::text from f),true);
+  refund:=public.admin_manage_unified_refund(gen_random_uuid(),'request',item,null,
+    jsonb_build_object('amount',10000,'reason','Synthetic post-completion refund'));
+  perform public.admin_manage_unified_refund(gen_random_uuid(),'review',item,refund,
+    jsonb_build_object('reason','Synthetic post-completion refund'));
+  perform public.admin_manage_unified_refund(gen_random_uuid(),'approve',item,refund,
+    jsonb_build_object('amount',10000,'reason','Synthetic post-completion refund'));
+  if (select -sum(l.delta_idr) from shiap_private.stay_finance_lines l
+    where l.item_id=item and l.account='COMMISSION_REVENUE') is distinct from 69750::numeric then
+    raise exception 'Post-completion refund failed to adjust recognized commission';
+  end if;
 end $$;
 select 'STAY_V2_PHASE3_RLS_AND_LIFECYCLE_PASS';
 rollback;

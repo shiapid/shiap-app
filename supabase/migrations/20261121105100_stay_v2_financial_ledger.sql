@@ -82,12 +82,14 @@ begin
     raise exception 'Financial source is already posted with different details.' using errcode='23505';
   end if;
 
+  set constraints shiap_private.stay_finance_lines_journal_id_fkey deferred;
   journal:=gen_random_uuid();
   insert into shiap_private.stay_finance_lines(journal_id,item_id,account,delta_idr)
     select journal,x.item_id,x.account,x.delta_idr
     from jsonb_to_recordset(p_lines) x(item_id uuid,account text,delta_idr bigint) where x.delta_idr<>0;
   insert into shiap_private.stay_finance_journals(id,source_kind,source_id,booking_id,actor_id,description)
     values(journal,p_kind,p_source,p_booking,p_actor,p_description);
+  set constraints shiap_private.stay_finance_lines_journal_id_fkey immediate;
   return journal;
 end $$;
 
